@@ -1196,7 +1196,7 @@ input:focus {
 
 
 
-/* ALPHA 1.7 — buffs de sorts séparés des états */
+/* ALPHA 1.8 — buffs de sorts séparés des états */
 .buff-multi .buff-menu {
     width: 320px !important;
     max-width: min(320px, calc(100vw - 24px)) !important;
@@ -1324,7 +1324,7 @@ input:focus {
 }
 
 
-/* ALPHA 1.7 - status menu: one checkbox controls the state */
+/* ALPHA 1.8 - status menu: one checkbox controls the state */
 .status-multi {
     position: relative;
     overflow: visible !important;
@@ -1370,7 +1370,7 @@ input:focus {
 .npc-card .portrait-placeholder, .npc-card .portrait { width: 72px; height: 72px; }
 
 
-/* ALPHA 1.7 — PNJ allié / ennemi */
+/* ALPHA 1.8 — PNJ allié / ennemi */
 .npc-ally-row { background: rgba(63,127,95,.22); }
 .combat-import-panel select { min-width: 145px; }
 #npcAllegianceImport { min-width: 115px; }
@@ -1390,7 +1390,7 @@ input:focus {
     </p>
 
     <div class="version">
-        ALPHA 1.7
+        ALPHA 1.8
     </div>
 
 </header>
@@ -1980,7 +1980,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "ALPHA 1.7";
+const APP_VERSION = "ALPHA 1.8";
 
 
 /* =====================================================
@@ -4596,14 +4596,24 @@ function renderCombatWorkspace(combat) {
                 <option value="">Choisir un groupe…</option>
                 ${playerGroupOptions}
             </select>
-            <button class="primary-button" onclick="importPlayerGroup()">Importer</button>
+            <button class="primary-button" onclick="importPlayerGroup()">Importer groupe</button>
+            <select id="playerImport">
+                <option value="">Choisir un joueur…</option>
+                ${players.map(player => `<option value="${escapeHtml(String(player.id))}">${escapeHtml(player.characterName || "Joueur")}</option>`).join("")}
+            </select>
+            <button class="secondary-button" onclick="importPlayer()">➕ Joueur</button>
 
             <strong style="margin-left:8px;">👹 Monstres</strong>
             <select id="monsterGroupImport">
                 <option value="">Choisir un groupe…</option>
                 ${monsterGroupOptions}
             </select>
-            <button class="primary-button" onclick="importMonsterGroup()">Importer</button>
+            <button class="primary-button" onclick="importMonsterGroup()">Importer groupe</button>
+            <select id="monsterImport">
+                <option value="">Choisir un monstre…</option>
+                ${monsters.map(monster => `<option value="${escapeHtml(String(monster.id))}">${escapeHtml(monster.name || "Monstre")}</option>`).join("")}
+            </select>
+            <button class="secondary-button" onclick="importMonster()">➕ Monstre</button>
 
             <strong style="margin-left:8px;">🧑‍🤝‍🧑 PNJ</strong>
             <select id="npcImport">
@@ -4921,6 +4931,63 @@ function importPlayerGroup() {
     if (!added) {
         alert("Aucun joueur valide n'a pu être importé.");
     }
+}
+
+function importPlayer() {
+    const combat = getActiveCombat();
+    const select = document.getElementById("playerImport");
+    if (!combat || !select || !select.value) {
+        alert("Choisis d'abord un joueur.");
+        return;
+    }
+    const player = players.find(p => String(p.id) === String(select.value));
+    if (!player) return;
+    combat.fighters.push({
+        id: Date.now() + Math.random(),
+        type: "player",
+        sourceId: player.id,
+        name: player.characterName || "Joueur",
+        initiative: "",
+        concentration: false,
+        advantage: false,
+        disadvantage: false,
+        hp: Number(player.hp) || 0,
+        maxHp: Number(player.hp) || 0,
+        ac: Number(player.ac) || 0,
+        effect: "",
+        imageId: player.imageId || null
+    });
+    saveCombats();
+    renderCombats();
+}
+
+function importMonster() {
+    const combat = getActiveCombat();
+    const select = document.getElementById("monsterImport");
+    if (!combat || !select || !select.value) {
+        alert("Choisis d'abord un monstre.");
+        return;
+    }
+    const monster = monsters.find(m => String(m.id) === String(select.value));
+    if (!monster) return;
+    combat.fighters.push({
+        id: Date.now() + Math.random(),
+        type: "monster",
+        sourceId: monster.id,
+        name: monster.name || "Monstre",
+        initiative: Number(monster.initiative) || "",
+        concentration: false,
+        advantage: false,
+        disadvantage: false,
+        hp: Number(monster.hp) || 0,
+        maxHp: Number(monster.hp) || 0,
+        ac: Number(monster.ac) || 0,
+        effect: "",
+        imageId: monster.imageId || null,
+        hpFormula: monster.hpFormula || ""
+    });
+    saveCombats();
+    renderCombats();
 }
 
 function importNPC() {
