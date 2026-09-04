@@ -2065,7 +2065,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "ALPHA 1.11";
+const APP_VERSION = "ALPHA 1.12";
 
 
 /* =====================================================
@@ -4724,11 +4724,17 @@ function renderCombatWorkspace(combat) {
                         <option value="enemy">🔴 Ennemi</option>
                     </select>
                     <button class="primary-button combat-import-button" onclick="importNPC()">Importer</button>
+                </div>
+            </div>
+
+            <div class="combat-import-row">
+                <div class="combat-import-title">➕ Ligne vierge</div>
+                <div class="combat-import-option combat-import-npc-option">
                     <select id="manualAllegianceImport" title="Choisir le camp de la ligne vierge">
                         <option value="ally">🟢 Allié</option>
                         <option value="enemy">🔴 Ennemi</option>
                     </select>
-                    <button class="secondary-button combat-import-button" onclick="addManualFighter()">➕ Ajouter une ligne vierge</button>
+                    <button class="primary-button combat-import-button" onclick="addManualFighter()">Importer</button>
                 </div>
             </div>
         </div>
