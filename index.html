@@ -950,6 +950,118 @@ input:focus {
     border-radius: inherit;
 }
 
+
+.status-multi {
+    position: relative;
+    display: inline-block;
+    min-width: 190px;
+}
+.status-current {
+    padding: 6px 8px;
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 6px;
+    background: rgba(0,0,0,.12);
+    min-height: 20px;
+}
+.status-menu {
+    margin-top: 4px;
+    max-height: 260px;
+    overflow-y: auto;
+    border-radius: 7px;
+}
+.status-menu-row {
+    display: grid;
+    grid-template-columns: 1fr 30px 30px;
+    gap: 4px;
+    align-items: center;
+    padding: 3px 4px;
+}
+.status-menu-row > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.status-add,
+.status-remove {
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 700;
+}
+.status-add { background: rgba(60,180,90,.25); }
+.status-remove { background: rgba(210,70,70,.25); }
+
+.death-saves {
+    margin-top: 8px;
+    padding: 7px 9px;
+    border-radius: 7px;
+    background: rgba(0,0,0,.12);
+}
+.death-saves-title {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+.death-saves-row {
+    display: grid;
+    grid-template-columns: 70px repeat(3, 28px);
+    gap: 5px;
+    align-items: center;
+    margin-top: 4px;
+}
+.death-save-box {
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 700;
+    opacity: .5;
+}
+.death-save-box.checked { opacity: 1; }
+.death-save-box.success.checked { background: rgba(60,180,90,.35); }
+.death-save-box.failure.checked { background: rgba(210,70,70,.35); }
+
+
+.death-frise {
+    margin-top: 6px;
+    padding: 5px 7px;
+    border-radius: 6px;
+    background: rgba(0,0,0,.12);
+    font-size: 11px;
+    line-height: 1.8;
+}
+.death-frise-label {
+    display: inline-block;
+    width: 62px;
+    font-size: 10px;
+    opacity: .85;
+}
+.death-frise-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-right: 3px;
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 4px;
+    opacity: .35;
+}
+.death-frise-box.checked { opacity: 1; }
+.death-frise-box.success.checked { background: rgba(60,180,90,.4); }
+.death-frise-box.failure.checked { background: rgba(210,70,70,.4); }
+.death-frise-result {
+    margin-top: 6px;
+    padding: 4px 7px;
+    border-radius: 5px;
+    font-weight: 700;
+}
+.death-frise-result.stable { background: rgba(60,180,90,.25); }
+.death-frise-result.dead { background: rgba(0,0,0,.3); }
+
 </style>
 </head>
 
@@ -965,7 +1077,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.17
+        V0.19
     </div>
 
 </header>
@@ -1450,7 +1562,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.17";
+const APP_VERSION = "V0.19";
 
 
 /* =====================================================
@@ -4365,6 +4477,174 @@ async function ensureCombatImagesLoaded(combat) {
     });
 
     await Promise.all(jobs);
+}
+
+
+function getFighterStatuses(fighter) {
+    if (!fighter) return [];
+    if (Array.isArray(fighter.statuses)) return fighter.statuses;
+    if (fighter.status) return [fighter.status];
+    return [];
+}
+
+function setFighterStatuses(fighter, statuses) {
+    if (!fighter) return;
+    fighter.statuses = [...new Set((statuses || []).filter(Boolean))];
+    // Keep legacy field synchronized for compatibility with existing saves.
+    fighter.status = fighter.statuses[0] || "";
+}
+
+function toggleFighterStatus(fighterId, status) {
+    const combat = combats.find(c => c.id === activeCombatId);
+    if (!combat) return;
+
+    const fighter = combat.fighters.find(f => String(f.id) === String(fighterId));
+    if (!fighter) return;
+
+    const current = getFighterStatuses(fighter);
+    if (current.includes(status)) {
+        setFighterStatuses(fighter, current.filter(s => s !== status));
+    } else {
+        setFighterStatuses(fighter, [...current, status]);
+    }
+
+    saveCombats();
+    renderCombat();
+}
+
+function getStatusLabel(status) {
+    const labels = {
+        blinded: "Aveuglé",
+        charmed: "Charmé",
+        deafened: "Assourdi",
+        frightened: "Effrayé",
+        grappled: "Agrippé",
+        incapacitated: "Incapable d'agir",
+        invisible: "Invisible",
+        paralyzed: "Paralysé",
+        petrified: "Pétrifié",
+        poisoned: "Empoisonné",
+        prone: "À terre",
+        restrained: "Entravé",
+        stunned: "Étourdi",
+        unconscious: "Inconscient"
+    };
+    return labels[status] || status;
+}
+
+
+function getDeathSaveState(fighter) {
+    if (!fighter) return { successes: 0, failures: 0 };
+    fighter.deathSaves ||= { successes: 0, failures: 0 };
+    return fighter.deathSaves;
+}
+
+function setDeathSave(fighterId, type, index, value) {
+    const combat = combats.find(c => c.id === activeCombatId);
+    if (!combat) return;
+
+    const fighter = combat.fighters.find(f => String(f.id) === String(fighterId));
+    if (!fighter) return;
+
+    const saves = getDeathSaveState(fighter);
+    const key = type === "success" ? "successes" : "failures";
+    let count = Number(saves[key]) || 0;
+
+    if (value) {
+        count = Math.max(count, index + 1);
+    } else if (count === index + 1) {
+        count = index;
+    }
+
+    saves[key] = Math.max(0, Math.min(3, count));
+
+    applyDeathSaveOutcome(fighter);
+
+    saveCombats();
+    renderCombat();
+    if (typeof renderCombatDisplay === "function") {
+        renderCombatDisplay();
+    }
+}
+
+
+function renderDeathSavesFrise(fighter) {
+    if (!fighter || fighter.type !== "player" || Number(fighter.hp) > 0) return "";
+
+    const saves = getDeathSaveState(fighter);
+
+    if (fighter.deathSavesResult === "dead") {
+        return `<div class="death-frise-result dead">💀 MORT</div>`;
+    }
+
+    if (fighter.deathSavesResult === "stable") {
+        return `<div class="death-frise-result stable">🟢 STABILISÉ</div>`;
+    }
+
+    const successBoxes = [0,1,2].map(i =>
+        `<span class="death-frise-box success ${i < saves.successes ? "checked" : ""}">✓</span>`
+    ).join("");
+
+    const failureBoxes = [0,1,2].map(i =>
+        `<span class="death-frise-box failure ${i < saves.failures ? "checked" : ""}">✕</span>`
+    ).join("");
+
+    return `
+        <div class="death-frise">
+            <div><span class="death-frise-label">Réussites</span>${successBoxes}</div>
+            <div><span class="death-frise-label">Échecs</span>${failureBoxes}</div>
+        </div>
+    `;
+}
+
+function applyDeathSaveOutcome(fighter) {
+    if (!fighter || fighter.type !== "player") return;
+
+    const saves = getDeathSaveState(fighter);
+
+    if (saves.successes >= 3) {
+        fighter.deathSavesResult = "stable";
+        // RAW 5e: stable remains at 0 HP and unconscious.
+        fighter.hp = 0;
+    } else if (saves.failures >= 3) {
+        fighter.deathSavesResult = "dead";
+        fighter.hp = 0;
+    } else {
+        fighter.deathSavesResult = "";
+    }
+}
+
+function renderDeathSaves(fighter) {
+    if (!fighter || Number(fighter.hp) > 0) return "";
+
+    // Only players use the stabilization tracker.
+    if (fighter.type !== "player") return "";
+
+    const saves = getDeathSaveState(fighter);
+
+    const successBoxes = [0, 1, 2].map(i =>
+        `<button class="death-save-box success ${i < saves.successes ? "checked" : ""}"
+            onclick="setDeathSave('${String(fighter.id).replace(/'/g, "\\'")}', 'success', ${i}, ${i >= saves.successes})"
+            title="Réussite ${i + 1}">✓</button>`
+    ).join("");
+
+    const failureBoxes = [0, 1, 2].map(i =>
+        `<button class="death-save-box failure ${i < saves.failures ? "checked" : ""}"
+            onclick="setDeathSave('${String(fighter.id).replace(/'/g, "\\'")}', 'failure', ${i}, ${i >= saves.failures})"
+            title="Échec ${i + 1}">✕</button>`
+    ).join("");
+
+    return `
+        <div class="death-saves">
+            <div class="death-saves-title">Stabilisation</div>
+            <div class="death-saves-row">
+                <span>Réussites</span>${successBoxes}
+            </div>
+            <div class="death-saves-row">
+                <span>Échecs</span>${failureBoxes}
+            </div>
+        </div>
+    `;
 }
 
 function renderCombatDisplay() {
