@@ -684,6 +684,30 @@ justify-content:center;
 color:#666;
 font-size:28px;
 }
+
+.combat-display-result {
+position:fixed;
+inset:0;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+background:rgba(10,10,10,.88);
+z-index:20;
+text-align:center;
+pointer-events:none;
+}
+.combat-display-result-title {
+font-size:72px;
+font-weight:900;
+letter-spacing:2px;
+text-shadow:0 4px 18px #000;
+}
+.combat-display-result-subtitle {
+font-size:24px;
+color:#ccc;
+margin-top:12px;
+}
 .combat-display-empty {
 padding:80px 20px;
 text-align:center;
@@ -894,7 +918,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.13
+        V0.14
     </div>
 
 </header>
@@ -1363,7 +1387,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.13";
+const APP_VERSION = "V0.14";
 
 const PLAYER_STORAGE_KEY = "dnd_players";
 
@@ -3570,6 +3594,8 @@ function renderCombatWorkspace(combat) {
             <button class="secondary-button" onclick="addManualFighter()">➕ Ajouter un combattant</button>
             <button class="secondary-button" onclick="sortCombatByInitiative()">↕️ Trier initiative</button>
             <button class="primary-button" onclick="launchCombatWindow()">▶️ Lancer le combat</button>
+            <button class="secondary-button" onclick="combatDisplayPrevious()">◀️ Précédent</button>
+            <button class="secondary-button" onclick="combatDisplayNext()">▶️ Combattant suivant</button>
             <span class="combat-status">${combat.fighters.length} combattant(s)</span>
         </div>
 
@@ -3990,11 +4016,6 @@ function writeCombatDisplayDocument() {
                     <div id="displayTitle" class="combat-display-title">⚔️ Combat</div>
                     <div id="displayTurn" class="combat-display-turn">Préparation</div>
                 </div>
-                <div class="combat-display-controls">
-                    <button onclick="window.opener.combatDisplayPrevious()">◀ Tour précédent</button>
-                    <button onclick="window.opener.combatDisplayNext()">Tour suivant ▶</button>
-                    <button onclick="window.close()">✕ Fermer</button>
-                </div>
             </header>
             <main id="displayTrack" class="combat-display-track"></main>
         </body>
@@ -4016,10 +4037,51 @@ function getCombatDisplayCSS() {
 
 function getDisplayVisibleCount(combat) {
     if (!combat.displayStarted) return 0;
-    return Math.min(
-        combat.fighters.length,
-        Math.max(1, Number(combat.displayVisibleCount) || 1)
-    );
+    return Math.min(combat.fighters.length, Math.max(1, Number(combat.displayVisibleCount) || 1));
+}
+
+function getTurnEligibleFighters(combat) {
+    return (combat.fighters || []).filter(fighter => {
+        // Dead monsters are skipped. Players at 0 PV remain in the turn order.
+        return !(fighter.type === "monster" && Number(fighter.hp) <= 0);
+    });
+}
+
+function getCombatResult(combat) {
+    const players = combat.fighters.filter(f => f.type === "player");
+    const monsters = combat.fighters.filter(f => f.type === "monster");
+
+    if (!players.length || !monsters.length) return null;
+
+    const livingPlayers = players.filter(f => Number(f.hp) > 0);
+    const livingMonsters = monsters.filter(f => Number(f.hp) > 0);
+
+    if (livingMonsters.length === 0 && livingPlayers.length > 0) {
+        return { title: "🏆 VICTOIRE !", subtitle: "Tous les monstres sont vaincus." };
+    }
+
+    if (livingPlayers.length === 0 && livingMonsters.length > 0) {
+        return { title: "💀 GAME OVER", subtitle: "Le groupe ne peut plus continuer." };
+    }
+
+    return null;
+}
+
+function renderCombatResult(doc, combat) {
+    const old = doc.getElementById("displayResult");
+    if (old) old.remove();
+
+    const result = getCombatResult(combat);
+    if (!result) return;
+
+    const overlay = doc.createElement("div");
+    overlay.id = "displayResult";
+    overlay.className = "combat-display-result";
+    overlay.innerHTML = `
+        <div class="combat-display-result-title">${result.title}</div>
+        <div class="combat-display-result-subtitle">${result.subtitle}</div>
+    `;
+    doc.body.appendChild(overlay);
 }
 
 function renderCombatDisplay() {
@@ -4060,6 +4122,7 @@ function renderCombatDisplay() {
     }).join("");
 
     track.innerHTML = cards;
+    renderCombatResult(combatDisplayWindow.document, combat);
 }
 
 function getImageSource(imageId) {
@@ -4139,17 +4202,32 @@ function combatDisplayNext() {
     const combat = combats.find(c => c.id === combatDisplayCombatId);
     if (!combat || !combat.fighters.length) return;
 
+    const eligible = getTurnEligibleFighters(combat);
+    if (!eligible.length) return;
+
     if (!combat.displayStarted) {
         startCombatDisplayState();
         return;
     }
 
-    combat.currentIndex = (Number(combat.currentIndex) + 1) % combat.fighters.length;
+    const currentIndex = Number(combat.currentIndex) || 0;
+    let nextIndex = currentIndex;
+    let attempts = 0;
 
-    if (combat.currentIndex === 0) {
+    do {
+        nextIndex = (nextIndex + 1) % combat.fighters.length;
+        attempts++;
+    } while (
+        combat.fighters[nextIndex].type === "monster" &&
+        Number(combat.fighters[nextIndex].hp) <= 0 &&
+        attempts <= combat.fighters.length
+    );
+
+    if (nextIndex <= currentIndex) {
         combat.currentTurn = (Number(combat.currentTurn) || 1) + 1;
     }
 
+    combat.currentIndex = nextIndex;
     combat.displayVisibleCount = Math.max(
         Number(combat.displayVisibleCount) || 1,
         Math.min(combat.fighters.length, Number(combat.displayVisibleCount) + 1)
@@ -4163,68 +4241,36 @@ function combatDisplayPrevious() {
     const combat = combats.find(c => c.id === combatDisplayCombatId);
     if (!combat || !combat.fighters.length) return;
 
+    const eligible = getTurnEligibleFighters(combat);
+    if (!eligible.length) return;
+
     if (!combat.displayStarted) {
         startCombatDisplayState();
         return;
     }
 
-    combat.currentIndex = (Number(combat.currentIndex) - 1 + combat.fighters.length) %
-        combat.fighters.length;
+    const currentIndex = Number(combat.currentIndex) || 0;
+    let previousIndex = currentIndex;
+    let attempts = 0;
 
-    if (combat.currentIndex === combat.fighters.length - 1) {
+    do {
+        previousIndex = (previousIndex - 1 + combat.fighters.length) % combat.fighters.length;
+        attempts++;
+    } while (
+        combat.fighters[previousIndex].type === "monster" &&
+        Number(combat.fighters[previousIndex].hp) <= 0 &&
+        attempts <= combat.fighters.length
+    );
+
+    if (previousIndex > currentIndex) {
         combat.currentTurn = Math.max(1, (Number(combat.currentTurn) || 1) - 1);
     }
+
+    combat.currentIndex = previousIndex;
 
     saveCombats();
     renderCombatDisplay();
 }
-
-
-async function initializeApp() {
-
-    loadPlayers();
-    loadMonsters();
-
-    loadGroups();
-    loadCombats();
-
-
-    /*
-     * Création de la base IndexedDB
-     */
-
-    try {
-
-        await openDatabase();
-
-    } catch (error) {
-
-        console.error(
-            "IndexedDB indisponible :",
-            error
-        );
-
-    }
-
-
-    /*
-     * Migration éventuelle
-     * des anciennes images.
-     */
-
-    await migrateOldImages();
-
-
-    /*
-     * Affichage
-     */
-
-    await renderPlayers();
-
-}
-
-
-initializeApp();
 
 </script>
 
