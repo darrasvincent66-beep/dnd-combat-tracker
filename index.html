@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>D&D Combat Tracker, By Vincent DARRAS</title>
+<title>D&D Combat Tracker</title>
 
 <style>
 
@@ -1282,7 +1282,7 @@ input:focus {
 
 
 
-/* ALPHA 1.10 — buffs de sorts séparés des états */
+/* BETA 1.1 — buffs de sorts séparés des états */
 .buff-multi .buff-menu {
     width: 320px !important;
     max-width: min(320px, calc(100vw - 24px)) !important;
@@ -1410,7 +1410,7 @@ input:focus {
 }
 
 
-/* ALPHA 1.10 - status menu: one checkbox controls the state */
+/* BETA 1.1 - status menu: one checkbox controls the state */
 .status-multi {
     position: relative;
     overflow: visible !important;
@@ -1456,7 +1456,7 @@ input:focus {
 .npc-card .portrait-placeholder, .npc-card .portrait { width: 72px; height: 72px; }
 
 
-/* ALPHA 1.10 — PNJ allié / ennemi */
+/* BETA 1.1 — PNJ allié / ennemi */
 .npc-ally-row { background: rgba(63,127,95,.22); }
 #npcAllegianceImport, #manualAllegianceImport { min-width: 125px; }
 
@@ -1654,6 +1654,213 @@ button:active { transform: translateY(1px); }
     .nav-button { white-space: nowrap; padding: 10px 16px; }
 }
 
+
+/* =====================================================
+   BETA 1.1 — REFONTE VISUELLE DE L'ÉCRAN COMBAT
+   ===================================================== */
+#combat .page-header {
+    margin-bottom: 18px;
+}
+#combat .page-header h2 {
+    letter-spacing: .2px;
+}
+#combat .page-header p {
+    color: #9b978e !important;
+}
+#combat .combat-tabs {
+    gap: 6px;
+    padding: 5px 4px 12px;
+    border-bottom: 1px solid #4a4338;
+}
+#combat .combat-tab {
+    background: linear-gradient(180deg,#302f2c,#252422);
+    border: 1px solid #514b40;
+    border-radius: 7px;
+    padding: 9px 12px;
+    box-shadow: inset 0 1px rgba(255,255,255,.04);
+}
+#combat .combat-tab.active {
+    background: linear-gradient(180deg,#6b5730,#44371f);
+    border-color: #b38a3d;
+    box-shadow: 0 2px 10px rgba(0,0,0,.25), inset 0 1px rgba(255,255,255,.12);
+}
+#combat .combat-toolbar {
+    margin: 15px 0;
+    padding: 12px;
+    background: linear-gradient(135deg,rgba(55,50,43,.92),rgba(35,34,32,.96));
+    border: 1px solid #514b40;
+    border-radius: 10px;
+    box-shadow: 0 5px 18px rgba(0,0,0,.18), inset 0 1px rgba(255,255,255,.035);
+}
+#combat .combat-rename {
+    background:#181817;
+    border-color:#665c4d;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,.3);
+}
+#combat .combat-import-panel {
+    background: linear-gradient(135deg,rgba(43,41,37,.98),rgba(31,30,28,.98));
+    border-color:#514b40;
+    border-radius:10px;
+    box-shadow:0 6px 20px rgba(0,0,0,.16), inset 0 1px rgba(255,255,255,.035);
+}
+#combat .combat-import-row + .combat-import-row {
+    border-top:1px solid rgba(105,96,80,.22);
+    padding-top:9px;
+}
+#combat .combat-import-title {
+    color:#d7c8a8;
+    text-shadow:0 1px 2px #000;
+}
+#combat .combat-import-label {
+    color:#938d82;
+}
+#combat .combat-import-panel select,
+#combat .combat-number-input,
+#combat .combat-effect-select {
+    background:#191918;
+    border-color:#62594b;
+    box-shadow:inset 0 2px 5px rgba(0,0,0,.28);
+}
+#combat .primary-button {
+    background:linear-gradient(180deg,#4c8a68,#356449);
+    border:1px solid #5e9a78;
+    box-shadow:0 2px 6px rgba(0,0,0,.2), inset 0 1px rgba(255,255,255,.08);
+}
+#combat .primary-button:hover {
+    background:linear-gradient(180deg,#5a9c77,#3d7556);
+}
+#combat .secondary-button,
+#combat .combat-mini-btn,
+#combat .combat-dice-btn {
+    background:linear-gradient(180deg,#4a4844,#343330);
+    border:1px solid #625b50;
+    box-shadow:0 2px 5px rgba(0,0,0,.18), inset 0 1px rgba(255,255,255,.05);
+}
+#combat .secondary-button:hover,
+#combat .combat-mini-btn:hover,
+#combat .combat-dice-btn:hover {
+    background:linear-gradient(180deg,#57544e,#3d3a36);
+}
+#combat .combat-post-import-actions {
+    margin:12px 0 14px;
+    padding:10px 12px;
+    background:#201f1d;
+    border:1px solid #49443c;
+    border-radius:9px;
+}
+#combat .combat-status {
+    color:#aaa397;
+}
+#combat .combat-table-wrap {
+    background:#211f1d;
+    border-color:#514b40;
+    border-radius:11px;
+    box-shadow:0 8px 24px rgba(0,0,0,.2);
+}
+#combat .combat-table th {
+    background:linear-gradient(180deg,#393631,#2d2b28);
+    color:#c5bcae;
+    border-bottom:1px solid #514b40;
+    letter-spacing:.35px;
+}
+#combat .combat-table td {
+    border-top-color:#403d37;
+}
+#combat .combat-row.player-row { background:linear-gradient(90deg,rgba(45,105,73,.28),rgba(35,35,32,.18)); }
+#combat .combat-row.monster-row { background:linear-gradient(90deg,rgba(126,55,55,.3),rgba(39,31,30,.18)); }
+#combat .combat-row.manual-row { background:#292825; }
+#combat .combat-row:hover { background-color:rgba(255,255,255,.025); }
+#combat .combat-row.active-turn-row {
+    transform:scale(1.006);
+    box-shadow:0 0 0 1px #c59b4b, 0 0 18px rgba(197,155,75,.18);
+}
+#combat .combat-row.active-turn-row td {
+    border-top-color:#c59b4b;
+    border-bottom-color:rgba(197,155,75,.38);
+}
+#combat .combat-row.active-turn-row .combat-number {
+    color:#e2bc69;
+}
+#combat .combat-remove {
+    background:linear-gradient(180deg,#713f3f,#563030);
+    border:1px solid #875252;
+}
+
+/* Écran joueur : même identité visuelle que le panneau MJ */
+.combat-display-body {
+    background:
+        radial-gradient(circle at 50% -10%,rgba(152,119,61,.10),transparent 38%),
+        linear-gradient(135deg,#121211,#1a1816 55%,#11100f);
+}
+.combat-display-header {
+    background:linear-gradient(180deg,rgba(38,35,31,.98),rgba(25,24,22,.98));
+    border-bottom:1px solid #62563f;
+    box-shadow:0 5px 20px rgba(0,0,0,.35);
+    padding:16px 22px;
+}
+.combat-display-title {
+    color:#ead7ad;
+    letter-spacing:.3px;
+    text-shadow:0 2px 8px #000;
+}
+.combat-display-turn {
+    color:#b9b1a4;
+    margin-top:3px;
+}
+.combat-display-controls button {
+    background:linear-gradient(180deg,#47443f,#302f2c);
+    border-color:#655d51;
+}
+.combat-display-track {
+    gap:16px;
+    padding:28px 22px 36px;
+}
+.combat-display-card {
+    width:180px;
+    min-height:236px;
+    background:linear-gradient(180deg,#302e2a,#1e1d1b 68%);
+    border:2px solid #554f45;
+    border-radius:13px;
+    box-shadow:0 9px 20px rgba(0,0,0,.32), inset 0 1px rgba(255,255,255,.04);
+}
+.combat-display-card.player-card {
+    background:linear-gradient(180deg,rgba(47,105,75,.50),#211f1c 62%);
+    border-color:#456d56;
+}
+.combat-display-card.monster-card {
+    background:linear-gradient(180deg,rgba(124,54,54,.52),#211f1c 62%);
+    border-color:#754b4b;
+}
+.combat-display-card.active {
+    transform:translateY(-9px) scale(1.035);
+    border-color:#d1a24e;
+    box-shadow:0 0 0 1px rgba(209,162,78,.38),0 12px 30px rgba(0,0,0,.4),0 0 25px rgba(209,162,78,.18);
+}
+.combat-display-portrait {
+    height:145px;
+    border-radius:9px;
+    background:#100f0e;
+    border:1px solid rgba(255,255,255,.07);
+}
+.combat-display-name {
+    color:#eee7db;
+    margin:10px 0 8px;
+    text-shadow:0 1px 3px #000;
+}
+.combat-display-hp-segment {
+    border-color:#514c44;
+}
+.combat-display-effect {
+    color:#cfc6b7;
+}
+.combat-display-hidden {
+    width:180px;
+    min-height:236px;
+    border-color:#4d473e;
+    background:rgba(255,255,255,.012);
+    box-shadow:inset 0 0 30px rgba(0,0,0,.16);
+}
+
 </style>
 </head>
 
@@ -1669,7 +1876,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        ALPHA 1.10
+        BETA 1.1
     </div>
 
 </header>
@@ -2259,7 +2466,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.0";
+const APP_VERSION = "BETA 1.1";
 
 
 /* =====================================================
