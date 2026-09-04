@@ -534,6 +534,166 @@ color:#aaa;
 font-size:13px;
 margin-left:auto;
 }
+
+.combat-display-body {
+margin:0;
+background:#151515;
+color:#fff;
+font-family:Arial,Helvetica,sans-serif;
+min-height:100vh;
+}
+.combat-display-header {
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:20px;
+padding:18px 24px;
+background:#202020;
+border-bottom:1px solid #3c3c3c;
+position:sticky;
+top:0;
+z-index:10;
+}
+.combat-display-title {
+font-size:26px;
+font-weight:700;
+}
+.combat-display-turn {
+font-size:18px;
+color:#bbb;
+}
+.combat-display-controls {
+display:flex;
+gap:8px;
+}
+.combat-display-controls button {
+border:1px solid #555;
+background:#333;
+color:#fff;
+border-radius:7px;
+padding:9px 13px;
+cursor:pointer;
+}
+.combat-display-controls button:hover { background:#484848; }
+.combat-display-track {
+display:flex;
+flex-wrap:wrap;
+align-items:stretch;
+justify-content:center;
+gap:18px;
+padding:32px 28px;
+}
+.combat-display-card {
+position:relative;
+width:180px;
+min-height:230px;
+background:#252525;
+border:3px solid #3f3f3f;
+border-radius:16px;
+padding:12px;
+box-sizing:border-box;
+text-align:center;
+transition:transform .15s,border-color .15s,box-shadow .15s;
+}
+.combat-display-card.player-card {
+background:linear-gradient(180deg,rgba(55,110,82,.45),#252525 55%);
+}
+.combat-display-card.monster-card {
+background:linear-gradient(180deg,rgba(125,55,55,.45),#252525 55%);
+}
+.combat-display-card.active {
+transform:translateY(-8px) scale(1.04);
+border-color:#f2c94c;
+box-shadow:0 0 22px rgba(242,201,76,.35);
+}
+.combat-display-card.dead {
+opacity:.82;
+}
+.combat-display-portrait {
+height:145px;
+border-radius:11px;
+background:#111;
+display:flex;
+align-items:center;
+justify-content:center;
+overflow:hidden;
+position:relative;
+font-size:64px;
+}
+.combat-display-portrait img {
+width:100%;
+height:100%;
+object-fit:cover;
+}
+.combat-display-name {
+font-size:18px;
+font-weight:700;
+margin:11px 0 8px;
+white-space:nowrap;
+overflow:hidden;
+text-overflow:ellipsis;
+}
+.combat-display-hp {
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:5px;
+height:18px;
+}
+.combat-display-hp-segment {
+border-radius:4px;
+background:#454545;
+border:1px solid #555;
+}
+.combat-display-hp-segment.full { background:#42a85f; }
+.combat-display-hp-segment.mid { background:#e2b93b; }
+.combat-display-hp-segment.low { background:#c84b4b; }
+.combat-display-hp-segment.empty { background:#303030; }
+.combat-display-effect {
+margin-top:8px;
+font-size:14px;
+min-height:18px;
+}
+.combat-display-dead-overlay {
+position:absolute;
+inset:0;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:92px;
+background:rgba(0,0,0,.38);
+text-shadow:0 3px 12px #000;
+}
+.combat-display-unconscious-overlay {
+position:absolute;
+inset:0;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:76px;
+background:rgba(0,0,0,.25);
+text-shadow:0 3px 12px #000;
+}
+.combat-display-hidden {
+width:180px;
+min-height:230px;
+border-radius:16px;
+border:2px dashed #444;
+display:flex;
+align-items:center;
+justify-content:center;
+color:#666;
+font-size:28px;
+}
+.combat-display-empty {
+padding:80px 20px;
+text-align:center;
+color:#888;
+font-size:20px;
+}
+@media(max-width:800px) {
+.combat-display-card,.combat-display-hidden { width:145px; }
+.combat-display-portrait { height:115px; }
+}
 .empty-state {
     background: #242424;
     border: 1px solid #3d3d3d;
@@ -734,7 +894,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.12
+        V0.13
     </div>
 
 </header>
@@ -1203,7 +1363,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.12";
+const APP_VERSION = "V0.13";
 
 const PLAYER_STORAGE_KEY = "dnd_players";
 
@@ -3409,6 +3569,7 @@ function renderCombatWorkspace(combat) {
                 title="Nom du combat">
             <button class="secondary-button" onclick="addManualFighter()">➕ Ajouter un combattant</button>
             <button class="secondary-button" onclick="sortCombatByInitiative()">↕️ Trier initiative</button>
+            <button class="primary-button" onclick="launchCombatWindow()">▶️ Lancer le combat</button>
             <span class="combat-status">${combat.fighters.length} combattant(s)</span>
         </div>
 
@@ -3753,6 +3914,269 @@ function importMonsterGroup() {
 
     saveCombats();
     renderCombats();
+}
+
+
+
+/* =====================================================
+   FENÊTRE DE COMBAT / DEUXIÈME ÉCRAN
+===================================================== */
+
+let combatDisplayWindow = null;
+let combatDisplayTimer = null;
+let combatDisplayCombatId = null;
+
+function launchCombatWindow() {
+    const combat = getActiveCombat();
+
+    if (!combat) {
+        alert("Crée d'abord un combat.");
+        return;
+    }
+
+    if (!combat.fighters.length) {
+        alert("Ajoute au moins un combattant avant de lancer le combat.");
+        return;
+    }
+
+    combatDisplayCombatId = combat.id;
+
+    if (combatDisplayWindow && !combatDisplayWindow.closed) {
+        combatDisplayWindow.focus();
+        renderCombatDisplay();
+        return;
+    }
+
+    combatDisplayWindow = window.open(
+        "",
+        "dndCombatDisplay",
+        "width=1200,height=800,resizable=yes,scrollbars=yes"
+    );
+
+    if (!combatDisplayWindow) {
+        alert("La fenêtre de combat a été bloquée par le navigateur. Autorise les fenêtres pop-up pour ce site.");
+        return;
+    }
+
+    writeCombatDisplayDocument();
+    startCombatDisplayState();
+
+    if (combatDisplayTimer) clearInterval(combatDisplayTimer);
+    combatDisplayTimer = setInterval(() => {
+        if (!combatDisplayWindow || combatDisplayWindow.closed) {
+            clearInterval(combatDisplayTimer);
+            combatDisplayTimer = null;
+            return;
+        }
+        renderCombatDisplay();
+    }, 500);
+}
+
+function writeCombatDisplayDocument() {
+    const doc = combatDisplayWindow.document;
+
+    doc.open();
+    doc.write(`
+        <!doctype html>
+        <html lang="fr">
+        <head>
+            <meta charset="utf-8">
+            <title>Combat D&D</title>
+            <style>${getCombatDisplayCSS()}</style>
+        </head>
+        <body class="combat-display-body">
+            <header class="combat-display-header">
+                <div>
+                    <div id="displayTitle" class="combat-display-title">⚔️ Combat</div>
+                    <div id="displayTurn" class="combat-display-turn">Préparation</div>
+                </div>
+                <div class="combat-display-controls">
+                    <button onclick="window.opener.combatDisplayPrevious()">◀ Tour précédent</button>
+                    <button onclick="window.opener.combatDisplayNext()">Tour suivant ▶</button>
+                    <button onclick="window.close()">✕ Fermer</button>
+                </div>
+            </header>
+            <main id="displayTrack" class="combat-display-track"></main>
+        </body>
+        </html>
+    `);
+    doc.close();
+}
+
+function getCombatDisplayCSS() {
+    const styles = Array.from(document.querySelectorAll("style"))
+        .map(style => style.textContent)
+        .join("\n");
+
+    return `
+        ${styles}
+        html,body{margin:0!important;padding:0!important;}
+    `;
+}
+
+function getDisplayVisibleCount(combat) {
+    if (!combat.displayStarted) return 0;
+    return Math.min(
+        combat.fighters.length,
+        Math.max(1, Number(combat.displayVisibleCount) || 1)
+    );
+}
+
+function renderCombatDisplay() {
+    if (!combatDisplayWindow || combatDisplayWindow.closed) return;
+
+    const combat = combats.find(c => c.id === combatDisplayCombatId);
+    if (!combat) return;
+
+    const title = combatDisplayWindow.document.getElementById("displayTitle");
+    const turn = combatDisplayWindow.document.getElementById("displayTurn");
+    const track = combatDisplayWindow.document.getElementById("displayTrack");
+
+    if (!title || !turn || !track) return;
+
+    title.textContent = `⚔️ ${combat.name}`;
+
+    if (!combat.displayStarted) {
+        turn.textContent = "Prêt à commencer";
+    } else {
+        turn.textContent =
+            `Tour ${combat.currentTurn || 1} • ` +
+            `${getDisplayVisibleCount(combat)} combattant(s) révélé(s)`;
+    }
+
+    if (!combat.fighters.length) {
+        track.innerHTML = `<div class="combat-display-empty">Aucun combattant</div>`;
+        return;
+    }
+
+    const visibleCount = getDisplayVisibleCount(combat);
+
+    const cards = combat.fighters.map((fighter, index) => {
+        if (index >= visibleCount) {
+            return `<div class="combat-display-hidden">?</div>`;
+        }
+
+        return renderCombatDisplayCard(fighter, index, combat);
+    }).join("");
+
+    track.innerHTML = cards;
+}
+
+function getImageSource(imageId) {
+    if (!imageId) return "";
+    try {
+        const images = JSON.parse(localStorage.getItem("dnd_images") || "{}");
+        return images[imageId] || "";
+    } catch (error) {
+        return "";
+    }
+}
+
+function renderCombatDisplayCard(fighter, index, combat) {
+    const maxHp = Math.max(1, Number(fighter.maxHp || fighter.hp || 1));
+    const hp = Math.max(0, Number(fighter.hp) || 0);
+    const ratio = Math.min(1, hp / maxHp);
+
+    let segments = 0;
+    if (hp > 0) segments = Math.ceil(ratio * 4);
+
+    let segmentClass = "full";
+    if (ratio <= .25) segmentClass = "low";
+    else if (ratio <= .5) segmentClass = "mid";
+
+    const hpSegments = Array.from({length:4}, (_, i) => {
+        const filled = i < segments;
+        return `<span class="combat-display-hp-segment ${filled ? segmentClass : "empty"}"></span>`;
+    }).join("");
+
+    const isDead = fighter.type === "monster" && hp <= 0;
+    const isUnconscious = fighter.type === "player" && hp <= 0;
+    const active = combat.displayStarted &&
+        index === (Number(combat.currentIndex) || 0);
+
+    let portrait = fighter.type === "monster" ? "👹" : "🧙";
+    if (fighter.imageId) {
+        const source = getImageSource(fighter.imageId);
+        if (source) {
+            portrait = `<img src="${escapeHtml(source)}" alt="">`;
+        }
+    }
+
+    const effect = COMBAT_EFFECTS.find(e => e[0] === fighter.effect);
+    const effectLabel = effect && effect[0] ? effect[1] : "";
+
+    return `
+        <article class="combat-display-card
+            ${fighter.type === "player" ? "player-card" : "monster-card"}
+            ${active ? "active" : ""}
+            ${isDead ? "dead" : ""}">
+            <div class="combat-display-portrait">
+                ${portrait}
+                ${isDead ? `<div class="combat-display-dead-overlay">☠️</div>` : ""}
+                ${isUnconscious ? `<div class="combat-display-unconscious-overlay">😵</div>` : ""}
+            </div>
+            <div class="combat-display-name">${escapeHtml(fighter.name || "Sans nom")}</div>
+            <div class="combat-display-hp">${hpSegments}</div>
+            <div class="combat-display-effect">${escapeHtml(effectLabel)}</div>
+        </article>
+    `;
+}
+
+function startCombatDisplayState() {
+    const combat = getActiveCombat();
+    if (!combat) return;
+
+    combat.displayStarted = true;
+    combat.currentTurn = 1;
+    combat.currentIndex = 0;
+    combat.displayVisibleCount = 1;
+
+    saveCombats();
+    renderCombatDisplay();
+}
+
+function combatDisplayNext() {
+    const combat = combats.find(c => c.id === combatDisplayCombatId);
+    if (!combat || !combat.fighters.length) return;
+
+    if (!combat.displayStarted) {
+        startCombatDisplayState();
+        return;
+    }
+
+    combat.currentIndex = (Number(combat.currentIndex) + 1) % combat.fighters.length;
+
+    if (combat.currentIndex === 0) {
+        combat.currentTurn = (Number(combat.currentTurn) || 1) + 1;
+    }
+
+    combat.displayVisibleCount = Math.max(
+        Number(combat.displayVisibleCount) || 1,
+        Math.min(combat.fighters.length, Number(combat.displayVisibleCount) + 1)
+    );
+
+    saveCombats();
+    renderCombatDisplay();
+}
+
+function combatDisplayPrevious() {
+    const combat = combats.find(c => c.id === combatDisplayCombatId);
+    if (!combat || !combat.fighters.length) return;
+
+    if (!combat.displayStarted) {
+        startCombatDisplayState();
+        return;
+    }
+
+    combat.currentIndex = (Number(combat.currentIndex) - 1 + combat.fighters.length) %
+        combat.fighters.length;
+
+    if (combat.currentIndex === combat.fighters.length - 1) {
+        combat.currentTurn = Math.max(1, (Number(combat.currentTurn) || 1) - 1);
+    }
+
+    saveCombats();
+    renderCombatDisplay();
 }
 
 
