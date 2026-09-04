@@ -734,7 +734,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.11
+        V0.12
     </div>
 
 </header>
@@ -1203,7 +1203,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.11";
+const APP_VERSION = "V0.12";
 
 const PLAYER_STORAGE_KEY = "dnd_players";
 
@@ -3544,7 +3544,7 @@ function renderCombatRow(fighter, index) {
 
             <td>
                 <button class="combat-remove"
-                        onclick="removeFighter(${index})"
+                        onclick="removeCombatFighter(${index})"
                         title="Supprimer ce combattant">🗑️</button>
             </td>
         </tr>
@@ -3657,6 +3657,15 @@ function sortCombatByInitiative() {
         return bi - ai;
     });
 
+    saveCombats();
+    renderCombats();
+}
+
+function removeCombatFighter(index) {
+    const combat = getActiveCombat();
+    if (!combat || !combat.fighters[index]) return;
+
+    combat.fighters.splice(index, 1);
     saveCombats();
     renderCombats();
 }
