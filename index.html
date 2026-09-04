@@ -725,6 +725,13 @@ justify-content:center;
 color:#666;
 font-size:28px;
 }
+.combat-fighter-avatar {
+width:100%;
+height:100%;
+object-fit:cover;
+display:block;
+border-radius:inherit;
+}
 .combat-display-result {
 position:fixed;
 inset:0;
@@ -1441,7 +1448,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.15";
+const APP_VERSION = "V0.16";
 
 
 /* =====================================================
@@ -3653,6 +3660,41 @@ function loadCombats() {
             if (!Array.isArray(combat.fighters)) return;
 
             combat.fighters.forEach(fighter => {
+                // Les anciens combats peuvent avoir perdu le lien vers l'image.
+                // On le reconstruit depuis la bibliothèque sans modifier les PV.
+                if (!fighter.image) {
+                    const sourceId =
+                        fighter.sourceId ??
+                        fighter.originalId ??
+                        fighter.libraryId ??
+                        fighter.templateId;
+
+                    if (fighter.type === "player") {
+                        const source = players.find(
+                            player => String(player.id) === String(sourceId)
+                        );
+                        if (source) {
+                            fighter.image =
+                                source.image ||
+                                source.imageData ||
+                                source.avatar ||
+                                "";
+                        }
+                    }
+
+                    if (fighter.type === "monster") {
+                        const source = monsters.find(
+                            monster => String(monster.id) === String(sourceId)
+                        );
+                        if (source) {
+                            fighter.image =
+                                source.image ||
+                                source.imageData ||
+                                source.avatar ||
+                                "";
+                        }
+                    }
+                }
                 if (Number(fighter.maxHp) > 0) return;
 
                 let baseHp = Number(fighter.hp) || 0;
@@ -4308,6 +4350,50 @@ function renderCombatResultOverlay(doc, combat) {
     doc.body.appendChild(overlay);
 }
 
+function getFighterImageSrc(fighter) {
+    if (!fighter) return "";
+
+    if (fighter.image) return fighter.image;
+    if (fighter.imageData) return fighter.imageData;
+    if (fighter.avatar) return fighter.avatar;
+
+    const sourceId =
+        fighter.sourceId ??
+        fighter.originalId ??
+        fighter.libraryId ??
+        fighter.templateId;
+
+    if (fighter.type === "player") {
+        const source = players.find(
+            player => String(player.id) === String(sourceId)
+        );
+        return source?.image || source?.imageData || source?.avatar || "";
+    }
+
+    if (fighter.type === "monster") {
+        const source = monsters.find(
+            monster => String(monster.id) === String(sourceId)
+        );
+        return source?.image || source?.imageData || source?.avatar || "";
+    }
+
+    return "";
+}
+
+function getFighterDisplayIcon(fighter) {
+    const src = getFighterImageSrc(fighter);
+
+    if (src) {
+        return `<img class="combat-fighter-avatar"
+                    src="${src}"
+                    alt=""
+                    onerror="this.style.display='none';this.nextElementSibling.style.display='inline';">
+                <span style="display:none">⚔️</span>`;
+    }
+
+    return getFighterDisplayIcon(fighter);
+}
+
 function renderCombatDisplay() {
     if (!combatDisplayWindow || combatDisplayWindow.closed) return;
 
@@ -4400,7 +4486,7 @@ function renderCombatDisplayCard(fighter, index, combat) {
     const active = combat.displayStarted &&
         index === (Number(combat.currentIndex) || 0);
 
-    let portrait = fighter.type === "monster" ? "👹" : "🧙";
+    let portrait = getFighterDisplayIcon(fighter);
     if (fighter.imageId) {
         const source = getImageSource(fighter.imageId);
         if (source) {
