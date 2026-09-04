@@ -710,6 +710,51 @@ justify-content:center;
 gap:18px;
 padding:32px 28px;
 }
+.combat-display-timer {
+    margin-left:auto;
+    padding:6px 12px;
+    min-width:92px;
+    text-align:center;
+    color:#f1dfb2;
+    font-size:22px;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:1px;
+    text-shadow:0 0 12px rgba(232,190,93,.18),0 2px 8px #000;
+}
+.combat-display-hit {
+    animation:combat-hit-flash .48s ease-out both !important;
+}
+.combat-display-hit::before {
+    content:"✕";
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:8;
+    pointer-events:none;
+    color:rgba(255,72,72,.96);
+    font-size:86px;
+    font-weight:900;
+    line-height:1;
+    text-shadow:0 0 8px rgba(255,30,30,.8),0 0 28px rgba(255,0,0,.45);
+    animation:combat-hit-marker .48s ease-out both;
+}
+.combat-display-hit::after {
+    content:attr(data-hit-text);
+    position:absolute;
+    left:50%;
+    top:42%;
+    z-index:9;
+    transform:translate(-50%,-50%);
+    pointer-events:none;
+    color:#fff2f2;
+    font-size:22px;
+    font-weight:900;
+    white-space:nowrap;
+    text-shadow:0 2px 8px #000,0 0 12px rgba(255,40,40,.75);
+    animation:combat-damage-number .48s ease-out both;
+}
 .combat-display-card {
 position:relative;
 width:180px;
@@ -1866,7 +1911,7 @@ button:active { transform: translateY(1px); }
 
 
 /* =====================================================
-   BETA 1.5 — ÉCRAN JOUEURS : ANIMATION DU TOUR ACTIF UNIQUEMENT
+   BETA 1.6 — ÉCRAN JOUEURS + HIT MARKER
    Couche visuelle/animation uniquement.
    ===================================================== */
 .combat-display-body {
@@ -1891,7 +1936,7 @@ button:active { transform: translateY(1px); }
 }
 .combat-display-header, .combat-display-track { position:relative; z-index:2; }
 .combat-display-header {
-    min-height:72px;
+    min-height:58px;
     display:flex; align-items:center; justify-content:space-between;
     background:linear-gradient(180deg,rgba(24,22,19,.94),rgba(12,12,11,.82));
     border-bottom:1px solid rgba(210,166,76,.42);
@@ -1899,24 +1944,11 @@ button:active { transform: translateY(1px); }
     backdrop-filter:blur(8px);
 }
 .combat-display-title {
-    font-size:25px !important;
+    font-size:24px !important;
     color:#f1dfb2 !important;
     text-shadow:0 2px 14px rgba(232,190,93,.22),0 2px 8px #000;
 }
 .combat-display-turn { opacity:.82; }
-.combat-display-active-banner {
-    min-height:22px;
-    margin-top:5px;
-    color:#f4cf78;
-    font-weight:800;
-    letter-spacing:.7px;
-    text-transform:uppercase;
-    opacity:0;
-    transform:translateY(-5px) scale(.98);
-    transition:opacity .28s ease, transform .28s ease;
-    text-shadow:0 0 12px rgba(229,177,70,.34);
-}
-.combat-display-active-banner.visible { opacity:1; transform:none; }
 .combat-display-track {
     min-height:calc(100vh - 100px);
     align-items:center !important;
@@ -1995,6 +2027,21 @@ button:active { transform: translateY(1px); }
 }
 .ambient-one { width:260px; height:260px; left:-120px; bottom:-100px; background:radial-gradient(circle,rgba(64,151,105,.12),transparent 68%); animation:none; }
 .ambient-two { width:300px; height:300px; right:-150px; bottom:-130px; background:radial-gradient(circle,rgba(177,62,62,.12),transparent 68%); animation:none; }
+@keyframes combat-hit-flash {
+    0%{filter:saturate(1.15) brightness(1.05); box-shadow:0 0 0 1px rgba(255,70,70,.8),0 0 38px rgba(255,35,35,.75),inset 0 0 35px rgba(255,30,30,.42); transform:translateY(-2px) scale(1.02)}
+    35%{filter:saturate(1.35) brightness(1.14); box-shadow:0 0 0 2px rgba(255,75,75,.95),0 0 55px rgba(255,35,35,.8),inset 0 0 42px rgba(255,30,30,.5); transform:translateY(-2px) scale(1.025)}
+    100%{filter:saturate(.84) brightness(.84); box-shadow:none; transform:translateY(0) scale(1)}
+}
+@keyframes combat-hit-marker {
+    0%{opacity:0; transform:scale(.55) rotate(-8deg)}
+    20%{opacity:1; transform:scale(1.08) rotate(3deg)}
+    100%{opacity:0; transform:scale(1.18) rotate(8deg)}
+}
+@keyframes combat-damage-number {
+    0%{opacity:0; transform:translate(-50%,-35%) scale(.75)}
+    18%{opacity:1; transform:translate(-50%,-50%) scale(1.05)}
+    100%{opacity:0; transform:translate(-50%,-115%) scale(1)}
+}
 @keyframes combat-ambient-pulse { from{transform:scale(1) rotate(0deg);opacity:.72} to{transform:scale(1.06) rotate(1deg);opacity:1} }
 @keyframes combat-card-in { from{opacity:0;transform:translateY(28px) scale(.94)} to{opacity:1;transform:translateY(0) scale(1)} }
 @keyframes combat-card-sheen { 0%,72%{transform:translateX(-120%)} 88%,100%{transform:translateX(120%)} }
@@ -2005,7 +2052,7 @@ button:active { transform: translateY(1px); }
 @keyframes ambient-drift-one { from{transform:translate(0,0)} to{transform:translate(55px,-28px)} }
 @keyframes ambient-drift-two { from{transform:translate(0,0)} to{transform:translate(-45px,-35px)} }
 @media (prefers-reduced-motion: reduce) {
-    .combat-display-body::before,.combat-display-card,.combat-display-card::before,.combat-display-card.active::after,.combat-display-hidden::after,.combat-display-ambient { animation:none !important; }
+    .combat-display-body::before,.combat-display-card,.combat-display-card::before,.combat-display-card.active::after,.combat-display-hidden::after,.combat-display-ambient,.combat-display-hit,.combat-display-hit::before,.combat-display-hit::after { animation:none !important; }
     .combat-display-active-banner { transition:none; }
 }
 </style>
@@ -2023,7 +2070,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.5
+        BETA 1.6
     </div>
 
 </header>
@@ -2613,7 +2660,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.5";
+const APP_VERSION = "BETA 1.6";
 
 
 /* =====================================================
@@ -5507,6 +5554,7 @@ function updateFighter(index, field, value) {
     }
 
     saveCombats();
+    if (field === "hp") renderCombatDisplay();
 }
 
 function changeFighterValue(index, field, amount) {
@@ -5521,6 +5569,7 @@ function changeFighterValue(index, field, amount) {
         combat.fighters[index].deathSavesResult = "";
     }
     saveCombats();
+    if (field === "hp") renderCombatDisplay();
     renderCombats();
 }
 
@@ -5766,6 +5815,11 @@ function launchCombatWindow() {
 
     combatDisplayCombatId = combat.id;
 
+    if (!combat.displayStarted) {
+        combat.displayElapsedMs = 0;
+        combat.displayStartedAt = Date.now();
+    }
+
     if (combatDisplayWindow && !combatDisplayWindow.closed) {
         combatDisplayWindow.focus();
         renderCombatDisplay();
@@ -5813,11 +5867,11 @@ function writeCombatDisplayDocument() {
             <header class="combat-display-header">
                 <div>
                     <div id="displayTitle" class="combat-display-title">⚔️ Combat</div>
-                    <div id="displayTurn" class="combat-display-turn">Préparation</div>
-                    <div id="displayActive" class="combat-display-active-banner" aria-live="polite"></div>
+                    <div id="displayTurn" class="combat-display-turn">- 1</div>
                 </div>
                 <div class="combat-display-controls">
-                    <button onclick="window.close()">✕ Fermer</button>
+                    <div id="displayTimer" class="combat-display-timer">⏱ 00:00:00</div>
+                    <button onclick="window.close()">✕</button>
                 </div>
             </header>
             <div class="combat-display-ambient ambient-one"></div>
@@ -6258,6 +6312,20 @@ function renderDeathSavesFrise(fighter) {
     `;
 }
 
+function formatCombatElapsed(ms) {
+    const totalSeconds = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(hours).padStart(2,"0")}:${String(minutes).padStart(2,"0")}:${String(seconds).padStart(2,"0")}`;
+}
+
+function getCombatElapsedMs(combat) {
+    const stored = Math.max(0, Number(combat.displayElapsedMs) || 0);
+    if (!combat.displayStarted || !combat.displayStartedAt) return stored;
+    return stored + Math.max(0, Date.now() - Number(combat.displayStartedAt));
+}
+
 function renderCombatDisplay() {
     if (!combatDisplayWindow || combatDisplayWindow.closed) return;
 
@@ -6293,6 +6361,9 @@ function renderCombatDisplay() {
     if (!title || !turn || !track) return;
 
     title.textContent = `⚔️ ${combat.name}`;
+    turn.textContent = `- ${combat.displayStarted ? (combat.currentTurn || 1) : 1}`;
+    const timer = combatDisplayWindow.document.getElementById("displayTimer");
+    if (timer) timer.textContent = `⏱ ${formatCombatElapsed(getCombatElapsedMs(combat))}`;
 
     // Les portraits sont dans IndexedDB : on les charge en parallèle.
     // Le prochain rafraîchissement (déjà prévu par le timer du combat)
@@ -6304,22 +6375,6 @@ function renderCombatDisplay() {
     const previousIndex = combatDisplayWindow.__dndLastDisplayIndex;
     const turnChanged = combat.displayStarted && previousIndex !== undefined && previousIndex !== currentIndex;
 
-    if (!combat.displayStarted) {
-        turn.textContent = "Prêt à commencer";
-    } else {
-        turn.textContent =
-            `Tour ${combat.currentTurn || 1} • ` +
-            `${getDisplayVisibleCount(combat)} combattant(s) révélé(s)`;
-    }
-
-    const active = combatDisplayWindow.document.getElementById("displayActive");
-    if (active) {
-        active.textContent = combat.displayStarted && currentFighter
-            ? `⚔️ À VOUS DE JOUER — ${currentFighter.name || "Sans nom"}`
-            : "";
-        active.classList.toggle("visible", !!(combat.displayStarted && currentFighter));
-    }
-
     combatDisplayWindow.__dndLastDisplayIndex = currentIndex;
 
     if (!combat.fighters.length) {
@@ -6328,6 +6383,19 @@ function renderCombatDisplay() {
     }
 
     const visibleCount = getDisplayVisibleCount(combat);
+
+    const previousHp = combatDisplayWindow.__dndLastDisplayHp || {};
+    const hitMarkers = combatDisplayWindow.__dndHitMarkers || {};
+    combat.fighters.forEach((fighter, index) => {
+        const hp = Number(fighter.hp);
+        const oldHp = previousHp[index];
+        if (oldHp !== undefined && Number.isFinite(hp) && hp < oldHp) {
+            hitMarkers[index] = { amount: Math.max(0, oldHp - hp), at: Date.now() };
+        }
+        previousHp[index] = hp;
+    });
+    combatDisplayWindow.__dndLastDisplayHp = previousHp;
+    combatDisplayWindow.__dndHitMarkers = hitMarkers;
 
     const cards = combat.fighters.map((fighter, index) => {
         if (index >= visibleCount) {
@@ -6378,6 +6446,10 @@ function renderCombatDisplayCard(fighter, index, combat, animateActive = false) 
     const isUnconscious = fighter.type === "player" && hp <= 0 && fighter.deathSavesResult !== "dead";
     const active = combat.displayStarted &&
         index === (Number(combat.currentIndex) || 0);
+    const hit = combatDisplayWindow && combatDisplayWindow.__dndHitMarkers
+        ? combatDisplayWindow.__dndHitMarkers[index]
+        : null;
+    const hitActive = !!(hit && Date.now() - hit.at < 500);
 
     let portrait = enemySide ? "👹" : "🧑";
 
@@ -6394,7 +6466,9 @@ function renderCombatDisplayCard(fighter, index, combat, animateActive = false) 
             ${!enemySide ? "player-card" : "monster-card"}
             ${active ? "active" : ""}
             ${active && animateActive ? "turn-arrival" : ""}
-            ${isDead ? "dead" : ""}">
+            ${isDead ? "dead" : ""}
+            ${hitActive ? "combat-display-hit" : ""}"
+            ${hitActive ? `data-hit-text="-${hit.amount} PV"` : ""}>
             <div class="combat-display-portrait">
                 ${portrait}
                 ${isDead ? `<div class="combat-display-dead-overlay">☠️</div>` : ""}
@@ -6415,6 +6489,8 @@ function startCombatDisplayState() {
 
     combat.displayStarted = true;
     combat.currentTurn = 1;
+    combat.displayElapsedMs = 0;
+    combat.displayStartedAt = Date.now();
 
     const firstAlive =
         (combat.fighters || []).findIndex(
@@ -6462,6 +6538,8 @@ function endCombatDisplay() {
     const combat = combats.find(c => c.id === combatDisplayCombatId);
     if (!combat) return;
 
+    combat.displayElapsedMs = getCombatElapsedMs(combat);
+    combat.displayStartedAt = null;
     combat.displayStarted = false;
     combat.combatEnded = true;
     saveCombats();
