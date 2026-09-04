@@ -702,6 +702,18 @@ padding:9px 13px;
 cursor:pointer;
 }
 .combat-display-controls button:hover { background:#484848; }
+.combat-display-fullscreen {
+    font-size:20px;
+    line-height:1;
+    min-width:42px;
+    min-height:42px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+}
+.combat-display-fullscreen.is-fullscreen {
+    background:#4a6b57;
+}
 .combat-display-track {
 display:flex;
 flex-wrap:wrap;
@@ -1911,7 +1923,7 @@ button:active { transform: translateY(1px); }
 
 
 /* =====================================================
-   BETA 1.9 — ÉCRAN JOUEURS + HIT MARKER
+   BETA 1.10 — BOUTON PLEIN ÉCRAN
    Couche visuelle/animation uniquement.
    ===================================================== */
 .combat-display-body {
@@ -2070,7 +2082,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.9
+        BETA 1.10
     </div>
 
 </header>
@@ -2660,7 +2672,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.9";
+const APP_VERSION = "BETA 1.10";
 
 
 /* =====================================================
@@ -5851,6 +5863,28 @@ function launchCombatWindow() {
     }, 1000);
 }
 
+function toggleCombatDisplayFullscreen() {
+    const doc = document;
+    if (!doc.fullscreenElement) {
+        const target = doc.documentElement;
+        if (target.requestFullscreen) target.requestFullscreen().catch(() => {});
+    } else if (doc.exitFullscreen) {
+        doc.exitFullscreen().catch(() => {});
+    }
+}
+
+function updateCombatDisplayFullscreenButton() {
+    const button = document.querySelector('.combat-display-fullscreen');
+    if (!button) return;
+    const active = !!document.fullscreenElement;
+    button.classList.toggle('is-fullscreen', active);
+    button.textContent = active ? '⛶' : '⛶';
+    button.title = active ? 'Quitter le plein écran' : 'Plein écran';
+    button.setAttribute('aria-label', button.title);
+}
+
+document.addEventListener('fullscreenchange', updateCombatDisplayFullscreenButton);
+
 function writeCombatDisplayDocument() {
     const doc = combatDisplayWindow.document;
 
@@ -5871,6 +5905,7 @@ function writeCombatDisplayDocument() {
                 </div>
                 <div class="combat-display-controls">
                     <div id="displayTimer" class="combat-display-timer">⏱ 00:00:00</div>
+                    <button class="combat-display-fullscreen" title="Plein écran" aria-label="Plein écran" onclick="toggleCombatDisplayFullscreen()">⛶</button>
                     <button onclick="window.close()">✕</button>
                 </div>
             </header>
