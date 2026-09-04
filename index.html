@@ -543,7 +543,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.7
+        V0.8
     </div>
 
 </header>
@@ -1022,7 +1022,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.7";
+const APP_VERSION = "V0.8";
 
 const PLAYER_STORAGE_KEY = "dnd_players";
 
@@ -2551,6 +2551,26 @@ function loadGroups() {
         monsterGroups = mg ? JSON.parse(mg) : [];
         if (!Array.isArray(playerGroups)) playerGroups = [];
         if (!Array.isArray(monsterGroups)) monsterGroups = [];
+
+        // Migration transparente des anciens groupes :
+        // [1, 2, 3] devient [{sourceId:1, quantity:1}, ...]
+        playerGroups = playerGroups.map(group => ({
+            ...group,
+            members: (group.members || []).map(member =>
+                typeof member === "object"
+                    ? member
+                    : { sourceId: Number(member), quantity: 1 }
+            )
+        }));
+
+        monsterGroups = monsterGroups.map(group => ({
+            ...group,
+            members: (group.members || []).map(member =>
+                typeof member === "object"
+                    ? member
+                    : { sourceId: Number(member), quantity: 1 }
+            )
+        }));
     } catch (error) {
         console.error("Erreur de chargement des groupes :", error);
         playerGroups = [];
@@ -2581,6 +2601,10 @@ function openMonsterGroups() {
 }
 
 function openPlayerGroupForm(groupId = null) {
+    const form = document.getElementById("groupForm");
+    delete form.dataset.instanceMode;
+    delete form.dataset.instanceGroupId;
+    form.querySelector(".primary-button").textContent = "💾 Enregistrer";
     editingGroupId = groupId;
     editingGroupType = "players";
     document.getElementById("groupForm").reset();
@@ -2594,6 +2618,10 @@ function openPlayerGroupForm(groupId = null) {
 }
 
 function openMonsterGroupForm(groupId = null) {
+    const form = document.getElementById("groupForm");
+    delete form.dataset.instanceMode;
+    delete form.dataset.instanceGroupId;
+    form.querySelector(".primary-button").textContent = "💾 Enregistrer";
     editingGroupId = groupId;
     editingGroupType = "monsters";
     document.getElementById("groupForm").reset();
@@ -2607,12 +2635,16 @@ function openMonsterGroupForm(groupId = null) {
 }
 
 function closeGroupForm() {
+    const form = document.getElementById("groupForm");
+    delete form.dataset.instanceMode;
+    delete form.dataset.instanceGroupId;
+    form.querySelector(".primary-button").textContent = "💾 Enregistrer";
     document.getElementById("groupModal").classList.remove("active");
     editingGroupId = null;
     editingGroupType = null;
 }
 
-function renderGroupMembers(type, selectedIds) {
+function renderGroupMembers(type, selectedMembers) {
     const container = document.getElementById("groupMembers");
     const source = type === "players" ? players : monsters;
 
@@ -2625,25 +2657,61 @@ function renderGroupMembers(type, selectedIds) {
         return;
     }
 
-    const selected = new Set(selectedIds || []);
+    const selectedMap = new Map(
+        (selectedMembers || []).map(member => [
+            String(member.sourceId ?? member.id),
+            member
+        ])
+    );
+
     container.innerHTML = `
         <label style="display:block;margin-bottom:10px;">
-            ${type === "players" ? "Sélectionne les joueurs du groupe :" : "Sélectionne les monstres du groupe :"}
+            ${type === "players"
+                ? "Sélectionne les joueurs du groupe :"
+                : "Choisis le nombre d'exemplaires de chaque monstre :"}
         </label>
+
         ${source.map(item => {
             const id = String(item.id);
             const label = type === "players" ? item.characterName : item.name;
+            const saved = selectedMap.get(id);
+            const quantity = type === "monsters" ? (saved ? Number(saved.quantity || 1) : 0) : 0;
+
             return `
-                <label class="group-member-row">
-                    <input type="checkbox" name="groupMember" value="${escapeHtml(id)}" ${selected.has(item.id) || selected.has(id) ? "checked" : ""}>
+                <div class="group-member-row" style="align-items:center;">
+                    ${type === "players"
+                        ? `<input type="checkbox" name="groupMember" value="${escapeHtml(id)}" ${saved ? "checked" : ""}>`
+                        : `<input type="number"
+                                  class="monster-quantity"
+                                  data-source-id="${escapeHtml(id)}"
+                                  min="0"
+                                  max="99"
+                                  value="${quantity}"
+                                  style="width:75px;">`}
                     <span class="group-member-info">${escapeHtml(label)}</span>
-                </label>`;
+                    ${type === "monsters"
+                        ? `<span class="group-count">exemplaire(s)</span>`
+                        : ""}
+                </div>`;
         }).join("")}
+
+        ${type === "monsters"
+            ? `<p style="color:#aaa;font-size:13px;margin-top:12px;">
+                Chaque exemplaire sera créé séparément avec son propre nom, ses PV et son initiative.
+               </p>`
+            : ""}
     `;
 }
 
 document.getElementById("groupForm").addEventListener("submit", function(event) {
     event.preventDefault();
+
+    const form = document.getElementById("groupForm");
+
+    if (form.dataset.instanceMode === "true") {
+        saveMonsterGroupInstances(Number(form.dataset.instanceGroupId));
+        return;
+    }
 
     const name = document.getElementById("groupName").value.trim();
     if (!name) {
@@ -2651,16 +2719,30 @@ document.getElementById("groupForm").addEventListener("submit", function(event) 
         return;
     }
 
-    const memberIds = Array.from(
-        document.querySelectorAll('input[name="groupMember"]:checked')
-    ).map(input => {
-        const raw = input.value;
-        const n = Number(raw);
-        return Number.isNaN(n) ? raw : n;
-    });
+    let members = [];
 
-    if (!memberIds.length) {
-        alert("Sélectionne au moins un élément dans le groupe.");
+    if (editingGroupType === "players") {
+        members = Array.from(
+            document.querySelectorAll('input[name="groupMember"]:checked')
+        ).map(input => ({
+            sourceId: Number(input.value),
+            quantity: 1
+        }));
+    } else {
+        members = Array.from(
+            document.querySelectorAll(".monster-quantity")
+        ).map(input => ({
+            sourceId: Number(input.dataset.sourceId),
+            quantity: Math.max(0, Math.min(99, Number(input.value) || 0))
+        })).filter(member => member.quantity > 0);
+    }
+
+    if (!members.length) {
+        alert(
+            editingGroupType === "monsters"
+                ? "Ajoute au moins un exemplaire de monstre au groupe."
+                : "Sélectionne au moins un joueur dans le groupe."
+        );
         return;
     }
 
@@ -2672,7 +2754,7 @@ document.getElementById("groupForm").addEventListener("submit", function(event) 
     const data = {
         id: existing ? existing.id : Date.now() + Math.random(),
         name,
-        members: memberIds
+        members
     };
 
     if (existing) {
@@ -2708,8 +2790,8 @@ function renderPlayerGroups() {
 
     container.innerHTML = `<div class="players-list">
         ${playerGroups.map(group => {
-            const names = group.members.map(id => {
-                const p = players.find(x => x.id === id);
+            const names = group.members.map(member => {
+                const p = players.find(x => x.id === Number(member.sourceId ?? member));
                 return p ? p.characterName : "(joueur supprimé)";
             });
             return `
@@ -2747,8 +2829,10 @@ function renderMonsterGroups() {
 
     container.innerHTML = `<div class="players-list">
         ${monsterGroups.map(group => {
-            const names = group.members.map(id => {
-                const m = monsters.find(x => x.id === id);
+            const names = group.members.flatMap(member => {
+                const m = monsters.find(x => x.id === Number(member.sourceId ?? member));
+                const quantity = Number(member.quantity || 1);
+                return m ? Array.from({length: quantity}, (_, i) => quantity > 1 ? `${m.name} ${i + 1}` : m.name) : ["(monstre supprimé)"];
                 return m ? m.name : "(monstre supprimé)";
             });
             return `
@@ -2765,11 +2849,152 @@ function renderMonsterGroups() {
                     </div>
                     <div class="group-card-actions">
                         <button class="edit-button" onclick="openMonsterGroupForm(${group.id})">✏️ Modifier</button>
+                        <button class="edit-button" onclick="editMonsterGroupInstances(${group.id})">🎲 Régler les monstres</button>
                         <button class="delete-button" onclick="deleteGroup('monsters', ${group.id})">🗑️ Supprimer</button>
                     </div>
                 </div>`;
         }).join("")}
     </div>`;
+}
+
+
+function expandMonsterGroup(group) {
+    if (Array.isArray(group.instances) && group.instances.length) {
+        return group.instances.map(instance => ({ ...instance }));
+    }
+
+    const result = [];
+
+    (group.members || []).forEach(member => {
+        const monster = monsters.find(
+            m => m.id === Number(member.sourceId ?? member)
+        );
+
+        if (!monster) return;
+
+        const quantity = Math.max(1, Number(member.quantity || 1));
+
+        for (let i = 1; i <= quantity; i++) {
+            result.push({
+                id: `${group.id}_${monster.id}_${i}`,
+                sourceId: monster.id,
+                name: quantity > 1 ? `${monster.name} ${i}` : monster.name,
+                hpFormula: monster.hpFormula || "",
+                hp: monster.hp || 0,
+                initiative: monster.initiative || 0,
+                ac: monster.ac || 0,
+                imageId: monster.imageId || null
+            });
+        }
+    });
+
+    return result;
+}
+
+function editMonsterGroupInstances(groupId) {
+    const group = monsterGroups.find(g => g.id === groupId);
+    if (!group) return;
+
+    const instances = expandMonsterGroup(group);
+
+    const rows = instances.map((monster, index) => `
+        <div class="group-member-row" style="display:grid;grid-template-columns:minmax(140px,1fr) 90px 110px 90px;gap:8px;">
+            <div class="group-member-info">
+                <strong>${escapeHtml(monster.name)}</strong>
+            </div>
+            <input
+                type="number"
+                min="0"
+                value="${monster.hp}"
+                data-instance-index="${index}"
+                class="instance-hp"
+                title="PV">
+            <input
+                type="text"
+                value="${escapeHtml(monster.hpFormula)}"
+                data-instance-index="${index}"
+                class="instance-formula"
+                placeholder="2d8+2"
+                title="Formule PV">
+            <div style="display:flex;gap:4px;">
+                <input
+                    type="number"
+                    min="0"
+                    value="${monster.initiative}"
+                    data-instance-index="${index}"
+                    class="instance-initiative"
+                    title="Initiative"
+                    style="width:100%;">
+                <button
+                    type="button"
+                    class="secondary-button"
+                    onclick="rerollInstanceInitiative(${index})"
+                    style="padding:7px 9px;">🎲</button>
+            </div>
+        </div>
+    `).join("");
+
+    const modal = document.getElementById("groupModal");
+    document.getElementById("groupModalTitle").textContent =
+        `Préparer les monstres — ${group.name}`;
+
+    document.getElementById("groupMembers").innerHTML = `
+        <p style="color:#aaa;margin-top:0;">
+            Chaque exemplaire possède maintenant ses propres PV, formule et initiative.
+        </p>
+        <div style="display:grid;grid-template-columns:minmax(140px,1fr) 90px 110px 120px;gap:8px;margin-bottom:8px;color:#aaa;font-size:12px;">
+            <span>MONSTRE</span><span>PV</span><span>FORMULE</span><span>INITIATIVE</span>
+        </div>
+        ${rows || '<div class="empty-state"><p>Aucun monstre dans ce groupe.</p></div>'}
+    `;
+
+    document.getElementById("groupName").value = group.name;
+    document.getElementById("groupForm").dataset.instanceMode = "true";
+    document.getElementById("groupForm").dataset.instanceGroupId = String(groupId);
+    document.getElementById("groupModal").classList.add("active");
+
+    // Le bouton Enregistrer devient "💾 Enregistrer les monstres".
+    document.querySelector("#groupForm .primary-button").textContent =
+        "💾 Enregistrer les monstres";
+}
+
+function rerollInstanceInitiative(index) {
+    const input = document.querySelector(`.instance-initiative[data-instance-index="${index}"]`);
+    if (input) input.value = rollDice(1, 20);
+}
+
+function saveMonsterGroupInstances(groupId) {
+    const group = monsterGroups.find(g => g.id === groupId);
+    if (!group) return;
+
+    const instances = expandMonsterGroup(group);
+
+    instances.forEach((monster, index) => {
+        const hp = document.querySelector(`.instance-hp[data-instance-index="${index}"]`);
+        const formula = document.querySelector(`.instance-formula[data-instance-index="${index}"]`);
+        const initiative = document.querySelector(`.instance-initiative[data-instance-index="${index}"]`);
+
+        if (hp) monster.hp = Math.max(0, Number(hp.value) || 0);
+        if (formula) monster.hpFormula = formula.value.trim();
+        if (initiative) monster.initiative = Math.max(0, Number(initiative.value) || 0);
+    });
+
+    // Les réglages individuels sont conservés dans le groupe.
+    group.instances = instances.map(m => ({
+        id: m.id,
+        sourceId: m.sourceId,
+        name: m.name,
+        hpFormula: m.hpFormula,
+        hp: m.hp,
+        initiative: m.initiative,
+        ac: m.ac,
+        imageId: m.imageId
+    }));
+
+    if (saveGroups()) {
+        closeGroupForm();
+        renderMonsterGroups();
+    }
 }
 
 function deleteGroup(type, groupId) {
