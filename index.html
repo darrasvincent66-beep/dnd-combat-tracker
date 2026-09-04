@@ -1294,6 +1294,31 @@ input:focus {
     box-sizing: border-box;
 }
 
+
+/* ALPHA 1.1 - status menu: keep the complete menu visible inside the table */
+.status-multi {
+    position: relative;
+    overflow: visible !important;
+}
+.status-menu {
+    left: auto !important;
+    right: 0 !important;
+    width: 360px !important;
+    max-width: min(360px, calc(100vw - 24px)) !important;
+    box-sizing: border-box;
+}
+.status-menu-head, .status-menu-row {
+    grid-template-columns: minmax(0,1fr) 44px 44px !important;
+}
+.status-menu-head span:not(:first-child) {
+    white-space: normal;
+    text-align: center;
+}
+.status-menu-label {
+    overflow: visible;
+    text-overflow: clip;
+}
+
 </style>
 </head>
 
@@ -1309,7 +1334,7 @@ input:focus {
     </p>
 
     <div class="version">
-        ALPHA 1.0
+        ALPHA 1.1
     </div>
 
 </header>
@@ -1794,7 +1819,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "ALPHA 1.0";
+const APP_VERSION = "ALPHA 1.1";
 
 
 /* =====================================================
