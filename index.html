@@ -1340,6 +1340,12 @@ input:focus {
 .npc-card .monster-badge { white-space: nowrap; }
 .npc-card .portrait-placeholder, .npc-card .portrait { width: 72px; height: 72px; }
 
+
+/* ALPHA 1.5 — PNJ allié / ennemi */
+.npc-ally-row { background: rgba(63,127,95,.22); }
+.combat-import-panel select { min-width: 145px; }
+#npcAllegianceImport { min-width: 115px; }
+
 </style>
 </head>
 
@@ -1446,20 +1452,6 @@ input:focus {
 
         <div
             class="card"
-            onclick="openMonsters()">
-
-            <h3>👹 Monstres</h3>
-
-            <p>
-                Créer et gérer votre bibliothèque
-                de monstres.
-            </p>
-
-        </div>
-
-
-        <div
-            class="card"
             onclick="openNPCs()">
 
             <h3>🧑‍🤝‍🧑 PNJ</h3>
@@ -1467,6 +1459,20 @@ input:focus {
             <p>
                 Créer et gérer votre bibliothèque
                 de personnages non joueurs.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="openMonsters()">
+
+            <h3>👹 Monstres</h3>
+
+            <p>
+                Créer et gérer votre bibliothèque
+                de monstres.
             </p>
 
         </div>
@@ -1945,7 +1951,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "ALPHA 1.4";
+const APP_VERSION = "ALPHA 1.5";
 
 
 /* =====================================================
@@ -4553,6 +4559,17 @@ function renderCombatWorkspace(combat) {
                 ${monsterGroupOptions}
             </select>
             <button class="primary-button" onclick="importMonsterGroup()">Importer</button>
+
+            <strong style="margin-left:8px;">🧑‍🤝‍🧑 PNJ</strong>
+            <select id="npcImport">
+                <option value="">Choisir un PNJ…</option>
+                ${npcs.map(npc => `<option value="${escapeHtml(String(npc.id))}">${escapeHtml(npc.name)}</option>`).join("")}
+            </select>
+            <select id="npcAllegianceImport" title="Choisir le camp du PNJ">
+                <option value="ally">🟢 Allié</option>
+                <option value="enemy">🔴 Ennemi</option>
+            </select>
+            <button class="primary-button" onclick="importNPC()">Importer</button>
         </div>
 
         <div class="combat-table-wrap" style="margin-top:15px;">
@@ -4580,7 +4597,9 @@ function renderCombatWorkspace(combat) {
 function renderCombatRow(fighter, index, combat = getActiveCombat()) {
     const rowClass =
         fighter.type === "player" ? "player-row" :
-        fighter.type === "monster" ? "monster-row" : "manual-row";
+        fighter.type === "monster" ? "monster-row" :
+        fighter.type === "npc" ? (fighter.allegiance === "enemy" ? "monster-row" : "npc-ally-row") :
+        "manual-row";
 
     const isActiveTurn =
         combat &&
@@ -4590,7 +4609,9 @@ function renderCombatRow(fighter, index, combat = getActiveCombat()) {
 
     const typeLabel =
         fighter.type === "player" ? "Joueur" :
-        fighter.type === "monster" ? "Monstre" : "Manuel";
+        fighter.type === "monster" ? "Monstre" :
+        fighter.type === "npc" ? (fighter.allegiance === "enemy" ? "PNJ ennemi" : "PNJ allié") :
+        "Manuel";
 
     const initiative = fighter.initiative ?? "";
     const hp = fighter.hp ?? "";
@@ -4852,6 +4873,42 @@ function importPlayerGroup() {
     }
 }
 
+function importNPC() {
+    const combat = getActiveCombat();
+    const select = document.getElementById("npcImport");
+    const allegianceSelect = document.getElementById("npcAllegianceImport");
+    if (!combat || !select || !select.value) {
+        alert("Choisis d'abord un PNJ.");
+        return;
+    }
+
+    const npc = npcs.find(n => String(n.id) === String(select.value));
+    if (!npc) return;
+
+    const allegiance = allegianceSelect && allegianceSelect.value === "enemy" ? "enemy" : "ally";
+    combat.fighters.push({
+        id: Date.now() + Math.random(),
+        type: "npc",
+        sourceId: npc.id,
+        name: npc.name,
+        level: Number(npc.level) || 1,
+        allegiance,
+        initiative: Number(npc.initiative) || "",
+        concentration: false,
+        advantage: false,
+        disadvantage: false,
+        hp: Number(npc.hp) || 0,
+        maxHp: Number(npc.hp) || 0,
+        ac: Number(npc.ac) || 0,
+        effect: "",
+        imageId: npc.imageId || null,
+        hpFormula: npc.hpFormula || ""
+    });
+
+    saveCombats();
+    renderCombats();
+}
+
 function importMonsterGroup() {
     const combat = getActiveCombat();
     const select = document.getElementById("monsterGroupImport");
@@ -5002,12 +5059,14 @@ function getDisplayVisibleCount(combat) {
 function getCombatResultMessage(combat) {
     const playersInCombat =
         (combat.fighters || []).filter(
-            fighter => fighter.type === "player"
+            fighter => fighter.type === "player" ||
+                (fighter.type === "npc" && fighter.allegiance !== "enemy")
         );
 
     const monstersInCombat =
         (combat.fighters || []).filter(
-            fighter => fighter.type === "monster"
+            fighter => fighter.type === "monster" ||
+                (fighter.type === "npc" && fighter.allegiance === "enemy")
         );
 
     if (
@@ -5338,7 +5397,9 @@ function renderCombatDisplay() {
     if (
         combat.displayStarted &&
         combat.fighters[Number(combat.currentIndex) || 0] &&
-        combat.fighters[Number(combat.currentIndex) || 0].type === "monster" &&
+        (combat.fighters[Number(combat.currentIndex) || 0].type === "monster" ||
+         (combat.fighters[Number(combat.currentIndex) || 0].type === "npc" &&
+          combat.fighters[Number(combat.currentIndex) || 0].allegiance === "enemy")) &&
         Number(combat.fighters[Number(combat.currentIndex) || 0].hp) <= 0
     ) {
         const nextAlive = getNextAliveIndex(
@@ -5423,13 +5484,14 @@ function renderCombatDisplayCard(fighter, index, combat) {
 
     const friseStatuses = renderFriseStatuses(fighter);
 
-    const isDead = fighter.type === "monster" && hp <= 0 ||
+    const enemySide = fighter.type === "monster" || (fighter.type === "npc" && fighter.allegiance === "enemy");
+    const isDead = (enemySide && hp <= 0) ||
         fighter.type === "player" && fighter.deathSavesResult === "dead";
     const isUnconscious = fighter.type === "player" && hp <= 0 && fighter.deathSavesResult !== "dead";
     const active = combat.displayStarted &&
         index === (Number(combat.currentIndex) || 0);
 
-    let portrait = fighter.type === "monster" ? "👹" : "🧙";
+    let portrait = enemySide ? "👹" : "🧑";
 
     const source =
         fighter.imageData ||
@@ -5441,7 +5503,7 @@ function renderCombatDisplayCard(fighter, index, combat) {
 
     return `
         <article class="combat-display-card
-            ${fighter.type === "player" ? "player-card" : "monster-card"}
+            ${fighter.type === "player" || (fighter.type === "npc" && fighter.allegiance !== "enemy") ? "player-card" : "monster-card"}
             ${active ? "active" : ""}
             ${isDead ? "dead" : ""}">
             <div class="combat-display-portrait">
@@ -5467,8 +5529,7 @@ function startCombatDisplayState() {
     const firstAlive =
         (combat.fighters || []).findIndex(
             fighter =>
-                fighter.type !== "monster" ||
-                Number(fighter.hp) > 0
+                !((fighter.type === "monster" || (fighter.type === "npc" && fighter.allegiance === "enemy")) && Number(fighter.hp) <= 0)
         );
 
     combat.currentIndex =
