@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Combat Tracker</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #171717;
+            color: #f2f2f2;
+        }
+
+        header {
+            background: #242424;
+            padding: 20px 30px;
+            border-bottom: 2px solid #444;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        header p {
+            margin: 6px 0 0;
+            color: #aaa;
+        }
+
+        .navigation {
+            display: flex;
+            gap: 10px;
+            padding: 15px 30px;
+            background: #202020;
+            border-bottom: 1px solid #444;
+        }
+
+        .nav-button {
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            background: #333;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .nav-button:hover {
+            background: #444;
+        }
+
+        .nav-button.active {
+            background: #666;
+        }
+
+        main {
+            padding: 30px;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .welcome {
+            max-width: 900px;
+            margin: 40px auto;
+            text-align: center;
+        }
+
+        .welcome h2 {
+            font-size: 34px;
+            margin-bottom: 15px;
+        }
+
+        .welcome p {
+            color: #aaa;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .card {
+            background: #242424;
+            border: 1px solid #3d3d3d;
+            border-radius: 12px;
+            padding: 25px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: #666;
+        }
+
+        .card h3 {
+            margin-top: 0;
+            font-size: 22px;
+        }
+
+        .card p {
+            color: #aaa;
+            line-height: 1.5;
+        }
+
+        .placeholder {
+            background: #242424;
+            border: 1px solid #3d3d3d;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            color: #aaa;
+        }
+
+        @media (max-width: 600px) {
+            main {
+                padding: 15px;
+            }
+
+            header {
+                padding: 15px;
+            }
+
+            .navigation {
+                padding: 10px 15px;
+            }
+
+            .nav-button {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>⚔️ D&D Combat Tracker</h1>
+    <p>Gestionnaire de combats pour Donjons & Dragons</p>
+</header>
+
+<nav class="navigation">
+    <button class="nav-button active" onclick="showPage('library', this)">
+        📚 Bibliothèque
+    </button>
+
+    <button class="nav-button" onclick="showPage('combat', this)">
+        ⚔️ Combats
+    </button>
+</nav>
+
+<main>
+
+    <!-- BIBLIOTHÈQUE -->
+    <section id="library" class="page active">
+
+        <div class="welcome">
+            <h2>📚 Bibliothèque</h2>
+
+            <p>
+                Gérez ici vos joueurs, vos groupes de joueurs,
+                vos monstres et vos groupes de monstres.
+            </p>
+        </div>
+
+        <div class="cards">
+
+            <div class="card">
+                <h3>🧙 Joueurs</h3>
+                <p>
+                    Créer et gérer les fiches individuelles
+                    de vos personnages joueurs.
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>👥 Groupes de joueurs</h3>
+                <p>
+                    Créer des groupes de personnages
+                    prêts à être importés dans un combat.
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>👹 Monstres</h3>
+                <p>
+                    Créer et gérer votre bibliothèque
+                    de monstres.
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>👹👹 Groupes de monstres</h3>
+                <p>
+                    Préparer des groupes de monstres
+                    prêts à être utilisés dans vos combats.
+                </p>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- COMBATS -->
+    <section id="combat" class="page">
+
+        <div class="welcome">
+            <h2>⚔️ Combats</h2>
+
+            <p>
+                Préparez et gérez vos combats.
+                Chaque combat pourra ensuite être organisé
+                dans son propre onglet.
+            </p>
+        </div>
+
+        <div class="placeholder">
+            <h3>🗡️ Aucun combat créé</h3>
+
+            <p>
+                La gestion des combats sera ajoutée
+                dans la prochaine étape.
+            </p>
+        </div>
+
+    </section>
+
+</main>
+
+
+<script>
+
+    function showPage(pageId, button) {
+
+        // Masquer toutes les pages
+        document.querySelectorAll('.page').forEach(page => {
+            page.classList.remove('active');
+        });
+
+        // Afficher la page sélectionnée
+        document.getElementById(pageId).classList.add('active');
+
+        // Retirer l'état actif des boutons
+        document.querySelectorAll('.nav-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // Activer le bouton sélectionné
+        button.classList.add('active');
+    }
+
+</script>
+
+</body>
+</html>
