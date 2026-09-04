@@ -954,44 +954,137 @@ input:focus {
 .status-multi {
     position: relative;
     display: inline-block;
-    min-width: 190px;
+    width: 100%;
+    max-width: 280px;
 }
-.status-current {
-    padding: 6px 8px;
-    border: 1px solid rgba(255,255,255,.18);
-    border-radius: 6px;
-    background: rgba(0,0,0,.12);
-    min-height: 20px;
-}
-.status-menu {
-    margin-top: 4px;
-    max-height: 260px;
-    overflow-y: auto;
-    border-radius: 7px;
-}
-.status-menu-row {
-    display: grid;
-    grid-template-columns: 1fr 30px 30px;
-    gap: 4px;
+.status-multi > summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
     align-items: center;
-    padding: 3px 4px;
+    gap: 7px;
+    min-height: 32px;
+    padding: 6px 9px;
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 7px;
+    background: rgba(0,0,0,.14);
+    color: #f2f2f2;
+    font-size: 14px;
+    user-select: none;
 }
-.status-menu-row > span {
+.status-multi > summary::-webkit-details-marker { display:none; }
+.status-multi > summary::before {
+    content: '▶';
+    font-size: 10px;
+    opacity: .8;
+    transition: transform .15s ease;
+}
+.status-multi[open] > summary::before { transform: rotate(90deg); }
+.status-multi > summary:hover {
+    background: rgba(255,255,255,.07);
+    border-color: rgba(255,255,255,.28);
+}
+.status-summary-content {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+.status-menu {
+    position: absolute;
+    z-index: 1000;
+    top: calc(100% + 5px);
+    left: 0;
+    width: min(340px, 82vw);
+    max-height: 330px;
+    overflow-y: auto;
+    padding: 6px;
+    border: 1px solid rgba(255,255,255,.20);
+    border-radius: 9px;
+    background: #252525;
+    box-shadow: 0 10px 28px rgba(0,0,0,.45);
+}
+.status-menu-head {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) 34px 34px;
+    gap: 6px;
+    align-items: center;
+    padding: 4px 6px 6px;
+    color: #aeb6c2;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    border-bottom: 1px solid rgba(255,255,255,.10);
+    margin-bottom: 4px;
+}
+.status-menu-head span:not(:first-child) { text-align:center; }
+.status-menu-row {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) 34px 34px;
+    gap: 6px;
+    align-items: center;
+    padding: 5px 6px;
+    border-radius: 7px;
+    transition: background .12s ease;
+}
+.status-menu-row:hover { background: rgba(255,255,255,.06); }
+.status-menu-row.active { background: rgba(80,220,110,.09); }
+.status-menu-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #f0f0f0;
+    font-size: 13px;
+}
+.status-menu-row.active .status-menu-label { font-weight: 700; }
 .status-add,
 .status-remove {
-    width: 28px;
-    height: 28px;
-    border: 0;
-    border-radius: 5px;
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 6px;
     cursor: pointer;
-    font-weight: 700;
+    font-weight: 800;
+    font-size: 15px;
+    color: #fff;
+    transition: transform .1s ease, opacity .1s ease, box-shadow .1s ease;
 }
-.status-add { background: rgba(60,180,90,.25); }
-.status-remove { background: rgba(210,70,70,.25); }
+.status-add { background: rgba(255,255,255,.08); }
+.status-remove { background: rgba(255,255,255,.05); }
+.status-add:hover, .status-remove:hover { transform: scale(1.04); }
+.status-add.active {
+    background: rgba(70,205,100,.78) !important;
+    border-color: rgba(150,255,170,.95);
+    box-shadow: 0 0 0 1px rgba(100,235,125,.25), 0 0 10px rgba(70,205,100,.25);
+    opacity: 1;
+}
+.status-add:not(.active) { opacity: .75; }
+.status-remove.active {
+    background: rgba(215,70,70,.72) !important;
+    border-color: rgba(255,145,145,.9);
+    opacity: 1;
+}
+.status-remove.inactive {
+    opacity: .28;
+    cursor: default;
+}
+.status-clear-row {
+    margin-top: 4px;
+    padding-top: 5px;
+    border-top: 1px solid rgba(255,255,255,.10);
+}
+.status-clear-row button {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 6px;
+    background: rgba(255,255,255,.05);
+    color: #d6d6d6;
+    cursor: pointer;
+    text-align: left;
+}
+.status-clear-row button:hover { background: rgba(255,255,255,.09); }
 
 .death-saves {
     margin-top: 8px;
@@ -1102,7 +1195,7 @@ input:focus {
 }
 
 
-/* V0.23 */
+/* ALPHA 1.0 */
 .frise-statuses {
     display: flex;
     flex-wrap: wrap;
@@ -1129,7 +1222,7 @@ input:focus {
 }
 
 
-/* V0.23 - sauvegardes contre la mort dans la cellule Vie du MJ */
+/* ALPHA 1.0 - sauvegardes contre la mort dans la cellule Vie du MJ */
 .death-saves-inline {
     width: 100%;
     box-sizing: border-box;
@@ -1163,7 +1256,7 @@ input:focus {
 .combat-row:has(.death-saves-inline) td { vertical-align: top; }
 
 
-/* V0.23 - mise en page propre des sauvegardes contre la mort sur la frise */
+/* ALPHA 1.0 - mise en page propre des sauvegardes contre la mort sur la frise */
 .death-frise {
     width: 100%;
     box-sizing: border-box;
@@ -1216,7 +1309,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.23
+        ALPHA 1.0
     </div>
 
 </header>
@@ -1701,7 +1794,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.23";
+const APP_VERSION = "ALPHA 1.0";
 
 
 /* =====================================================
@@ -4675,27 +4768,57 @@ function getStatusLabel(status) {
 }
 
 function renderStatusMultiSelect(fighter) {
-    const selected = getFighterStatuses(fighter);
-    const rows = COMBAT_EFFECTS.filter(([value]) => value).map(([value, label]) => {
-        const active = selected.includes(value);
-        const safeId = String(fighter.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-        return `<div class="status-menu-row ${active ? "active" : ""}">
-            <span class="status-menu-label">${escapeHtml(label)}</span>
-            <button type="button" class="status-add ${active ? "selected" : ""}"
-                    onclick="toggleFighterStatus('${safeId}','${escapeHtml(value)}')"
-                    title="Appliquer cet état">✓</button>
-            <button type="button" class="status-remove ${!active ? "disabled" : ""}"
-                    onclick="toggleFighterStatus('${safeId}','${escapeHtml(value)}')"
-                    title="Retirer cet état">✕</button>
-        </div>`;
-    }).join("");
+    const selected = [...new Set(getFighterStatuses(fighter))];
+    const safeId = String(fighter.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
+    const rows = COMBAT_EFFECTS
+        .filter(([value]) => value)
+        .map(([value, label]) => {
+            const active = selected.includes(value);
+            return `<div class="status-menu-row ${active ? "active" : ""}">
+                <span class="status-menu-label">${escapeHtml(label)}</span>
+                <button type="button"
+                        class="status-add ${active ? "active" : ""}"
+                        onclick="toggleFighterStatus('${safeId}','${value}')"
+                        title="${active ? "État déjà appliqué" : "Appliquer cet état"}
+                        aria-label="${active ? "État déjà appliqué" : "Appliquer cet état"}">✓</button>
+                <button type="button"
+                        class="status-remove ${active ? "active" : "inactive"}"
+                        onclick="${active ? `toggleFighterStatus('${safeId}','${value}')` : 'return false;'}"
+                        title="${active ? "Retirer cet état" : "État non appliqué"}"
+                        aria-label="${active ? "Retirer cet état" : "État non appliqué"}">✕</button>
+            </div>`;
+        }).join("");
+
     const currentLabel = selected.length
-        ? selected.map(getStatusLabel).join(", ")
+        ? selected.map(getStatusLabel).join(" · ")
         : "— Aucun état —";
+
     return `<details class="status-multi">
-        <summary>${escapeHtml(currentLabel)}</summary>
-        <div class="status-menu">${rows}</div>
+        <summary>
+            <span class="status-summary-content">${escapeHtml(currentLabel)}</span>
+        </summary>
+        <div class="status-menu">
+            <div class="status-menu-head">
+                <span>États</span><span>Ajouter</span><span>Retirer</span>
+            </div>
+            ${rows}
+            <div class="status-clear-row">
+                <button type="button" onclick="clearFighterStatuses('${safeId}')">✕ Effacer tous les états</button>
+            </div>
+        </div>
     </details>`;
+}
+
+function clearFighterStatuses(fighterId) {
+    const combat = getActiveCombat();
+    if (!combat) return;
+    const fighter = combat.fighters.find(f => String(f.id) === String(fighterId));
+    if (!fighter) return;
+    setFighterStatuses(fighter, []);
+    saveCombats();
+    renderCombats();
+    renderCombatDisplay();
 }
 
 function getDeathSaveState(fighter) {
