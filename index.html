@@ -543,7 +543,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.9
+        V0.10
     </div>
 
 </header>
@@ -1022,7 +1022,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.9";
+const APP_VERSION = "V0.10";
 
 const PLAYER_STORAGE_KEY = "dnd_players";
 
@@ -2815,6 +2815,19 @@ function renderPlayerGroups() {
     </div>`;
 }
 
+function getMonsterGroupTotalCount(group) {
+    if (Array.isArray(group.instances) && group.instances.length) {
+        return group.instances.length;
+    }
+
+    return (group.members || []).reduce((total, member) => {
+        if (typeof member === "object") {
+            return total + Math.max(0, Number(member.quantity || 0));
+        }
+        return total + 1;
+    }, 0);
+}
+
 function renderMonsterGroups() {
     const container = document.getElementById("monsterGroupsList");
 
@@ -2841,7 +2854,7 @@ function renderMonsterGroups() {
                         <div class="portrait-placeholder">👹</div>
                         <div>
                             <div class="player-name">${escapeHtml(group.name)}</div>
-                            <div class="player-owner">${group.members.length} monstre(s)</div>
+                            <div class="player-owner">${getMonsterGroupTotalCount(group)} monstre(s)</div>
                         </div>
                     </div>
                     <div style="padding:15px;border-bottom:1px solid #3d3d3d;color:#ccc;">
