@@ -941,6 +941,14 @@ input:focus {
     padding:10px 12px; border-radius:7px; cursor:pointer; font-size:18px;
 }
 .dice-button:hover { background:#666; }
+.combat-fighter-portrait {
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
+    border-radius:inherit;
+}
+
 </style>
 </head>
 
@@ -956,7 +964,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.15
+        V0.16
     </div>
 
 </header>
@@ -972,7 +980,7 @@ input:focus {
 
     <button
         class="nav-button"
-        onclick="showPage('combat', this)">
+        onclick="loadCombats();showPage('combat', this)">
         ⚔️ Combats
     </button>
 
@@ -1441,7 +1449,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.15";
+const APP_VERSION = "V0.16";
 
 
 /* =====================================================
@@ -4306,6 +4314,51 @@ function renderCombatResultOverlay(doc, combat) {
     `;
 
     doc.body.appendChild(overlay);
+}
+
+
+function getLibraryImageForFighter(fighter) {
+    if (!fighter) return "";
+    if (fighter.image) return fighter.image;
+    if (fighter.imageData) return fighter.imageData;
+    if (fighter.avatar) return fighter.avatar;
+
+    const sourceId =
+        fighter.sourceId ??
+        fighter.originalId ??
+        fighter.libraryId ??
+        fighter.templateId;
+
+    if (fighter.type === "player") {
+        const source = players.find(
+            item => String(item.id) === String(sourceId)
+        );
+        return source?.image || source?.imageData || source?.avatar || "";
+    }
+
+    if (fighter.type === "monster") {
+        const source = monsters.find(
+            item => String(item.id) === String(sourceId)
+        );
+        return source?.image || source?.imageData || source?.avatar || "";
+    }
+
+    return "";
+}
+
+function renderFighterPortrait(fighter, fallback) {
+    const image = getLibraryImageForFighter(fighter);
+    if (!image) return fallback;
+
+    const safeImage = String(image)
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+    return `<img class="combat-fighter-portrait" src="${safeImage}" alt=""
+        onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex';">
+        <span style="display:none">⚔️</span>`;
 }
 
 function renderCombatDisplay() {
