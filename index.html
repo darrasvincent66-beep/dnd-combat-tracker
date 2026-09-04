@@ -1866,7 +1866,7 @@ button:active { transform: translateY(1px); }
 
 
 /* =====================================================
-   BETA 1.2 — ÉCRAN JOUEURS IMMERSIF ET DYNAMIQUE
+   BETA 1.3 — ÉCRAN JOUEURS IMMERSIF ET DYNAMIQUE
    Couche visuelle/animation uniquement.
    ===================================================== */
 .combat-display-body {
@@ -1938,14 +1938,14 @@ button:active { transform: translateY(1px); }
     border-radius:16px !important;
     transform:translateY(0) rotateX(0deg);
     transition:transform .35s ease, filter .35s ease, opacity .35s ease, box-shadow .35s ease;
-    animation: combat-card-in .65s cubic-bezier(.2,.75,.25,1) both;
+    animation:none;
 }
 .combat-display-card::before {
     content:"";
     position:absolute; inset:0; pointer-events:none;
     background:linear-gradient(120deg,transparent 25%,rgba(255,255,255,.10) 50%,transparent 75%);
     transform:translateX(-120%);
-    animation:combat-card-sheen 5.5s ease-in-out infinite;
+    animation:none; opacity:.35;
 }
 .combat-display-card:not(.active) { filter:saturate(.84) brightness(.84); }
 .combat-display-card.active {
@@ -1986,7 +1986,7 @@ button:active { transform: translateY(1px); }
 }
 .combat-display-hidden::after {
     content:"✦"; display:block; font-size:28px; margin-top:92px;
-    color:rgba(214,177,98,.28); animation:combat-hidden-pulse 3s ease-in-out infinite;
+    color:rgba(214,177,98,.28); animation:none; opacity:.28;
 }
 .combat-display-track.turn-change .combat-display-card { animation:combat-turn-arrival .72s cubic-bezier(.2,.8,.25,1) both; }
 .combat-display-track.turn-change .combat-display-card.active { animation:combat-active-arrival .85s cubic-bezier(.15,.8,.2,1) both; }
@@ -1994,15 +1994,15 @@ button:active { transform: translateY(1px); }
     position:fixed; border-radius:50%; pointer-events:none; z-index:1; opacity:.35;
     filter:blur(2px); mix-blend-mode:screen;
 }
-.ambient-one { width:260px; height:260px; left:-120px; bottom:-100px; background:radial-gradient(circle,rgba(64,151,105,.12),transparent 68%); animation:ambient-drift-one 12s ease-in-out infinite alternate; }
-.ambient-two { width:300px; height:300px; right:-150px; bottom:-130px; background:radial-gradient(circle,rgba(177,62,62,.12),transparent 68%); animation:ambient-drift-two 15s ease-in-out infinite alternate; }
+.ambient-one { width:260px; height:260px; left:-120px; bottom:-100px; background:radial-gradient(circle,rgba(64,151,105,.12),transparent 68%); animation:none; }
+.ambient-two { width:300px; height:300px; right:-150px; bottom:-130px; background:radial-gradient(circle,rgba(177,62,62,.12),transparent 68%); animation:none; }
 @keyframes combat-ambient-pulse { from{transform:scale(1) rotate(0deg);opacity:.72} to{transform:scale(1.06) rotate(1deg);opacity:1} }
 @keyframes combat-card-in { from{opacity:0;transform:translateY(28px) scale(.94)} to{opacity:1;transform:translateY(0) scale(1)} }
 @keyframes combat-card-sheen { 0%,72%{transform:translateX(-120%)} 88%,100%{transform:translateX(120%)} }
 @keyframes combat-sword-pulse { 0%,100%{transform:scale(1) rotate(-3deg);opacity:.75} 50%{transform:scale(1.16) rotate(3deg);opacity:1} }
 @keyframes combat-hidden-pulse { 0%,100%{opacity:.18;transform:scale(.9)} 50%{opacity:.42;transform:scale(1.08)} }
-@keyframes combat-turn-arrival { from{opacity:.25;transform:translateY(14px) scale(.97)} to{opacity:1;transform:translateY(0) scale(1)} }
-@keyframes combat-active-arrival { 0%{opacity:.35;transform:translateY(30px) scale(.93)} 60%{opacity:1;transform:translateY(-20px) scale(1.09)} 100%{opacity:1;transform:translateY(-16px) scale(1.075)} }
+@keyframes combat-turn-arrival { from{opacity:.72;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+@keyframes combat-active-arrival { 0%{opacity:.8;transform:translateY(-10px) scale(1.02)} 100%{opacity:1;transform:translateY(-16px) scale(1.075)} }
 @keyframes ambient-drift-one { from{transform:translate(0,0)} to{transform:translate(55px,-28px)} }
 @keyframes ambient-drift-two { from{transform:translate(0,0)} to{transform:translate(-45px,-35px)} }
 @media (prefers-reduced-motion: reduce) {
@@ -2017,14 +2017,14 @@ button:active { transform: translateY(1px); }
 
 <header>
 
-    <h1>⚔️ D&D Combat Tracker</h1>
+    <h1>⚔️ D&D Combat Tracker, By Vincent DARRAS</h1>
 
     <p>
         Gestionnaire de combats pour Donjons & Dragons
     </p>
 
     <div class="version">
-        BETA 1.2
+        BETA 1.3
     </div>
 
 </header>
@@ -2614,7 +2614,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.2";
+const APP_VERSION = "BETA 1.3";
 
 
 /* =====================================================
