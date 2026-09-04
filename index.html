@@ -543,7 +543,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.4
+        V0.7
     </div>
 
 </header>
@@ -602,19 +602,23 @@ input:focus {
         </div>
 
 
-        <div class="card">
+        <div
+            class="card"
+            onclick="openPlayerGroups()">
 
             <h3>👥 Groupes de joueurs</h3>
 
             <p>
-                Créer des groupes de personnages
-                prêts à être utilisés dans un combat.
+                Créer des groupes de personnages prêts
+                à être importés dans un combat.
             </p>
 
         </div>
 
 
-        <div class="card" onclick="openMonsters()">
+        <div
+            class="card"
+            onclick="openMonsters()">
 
             <h3>👹 Monstres</h3>
 
@@ -626,21 +630,18 @@ input:focus {
         </div>
 
 
-        <div class="card">
+        <div
+            class="card"
+            onclick="openMonsterGroups()">
 
             <h3>👹👹 Groupes de monstres</h3>
 
             <p>
                 Préparer des groupes de monstres
-                pour vos combats.
+                prêts à être importés dans un combat.
             </p>
 
         </div>
-<div class="card" onclick="openPlayerGroups()">
-<h3>👥 Groupes de joueurs</h3>
-<p>Créer des groupes de joueurs prêts à être importés dans un combat.</p>
-</div>
-
 
     </div>
 
@@ -1021,7 +1022,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.6";
+const APP_VERSION = "V0.7";
 
 const PLAYER_STORAGE_KEY = "dnd_players";
 
@@ -2681,9 +2682,15 @@ document.getElementById("groupForm").addEventListener("submit", function(event) 
     }
 
     if (saveGroups()) {
+        const savedGroupType = editingGroupType;
+
         closeGroupForm();
-        if (editingGroupType === "players") renderPlayerGroups();
-        else renderMonsterGroups();
+
+        if (savedGroupType === "players") {
+            renderPlayerGroups();
+        } else {
+            renderMonsterGroups();
+        }
     }
 });
 
