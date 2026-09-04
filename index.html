@@ -681,10 +681,22 @@ position:sticky;
 top:0;
 z-index:10;
 }
+.combat-display-title-wrap {
+    min-width:0;
+}
 .combat-display-title {
 font-size:26px;
 font-weight:700;
+white-space:nowrap;
+overflow:hidden;
+text-overflow:ellipsis;
 }
+.combat-display-fullscreen {
+    font-size:22px;
+    line-height:1;
+    min-width:42px;
+}
+
 .combat-display-turn {
 font-size:18px;
 color:#bbb;
@@ -749,7 +761,7 @@ padding:32px 28px;
     transform:translate(-50%,-50%);
     pointer-events:none;
     color:#fff2f2;
-    font-size:22px;
+    font-size:44px;
     font-weight:900;
     white-space:nowrap;
     text-shadow:0 2px 8px #000,0 0 12px rgba(255,40,40,.75);
@@ -1737,6 +1749,9 @@ button:active { transform: translateY(1px); }
     border-radius: 10px;
     box-shadow: 0 5px 18px rgba(0,0,0,.18), inset 0 1px rgba(255,255,255,.035);
 }
+.combat-add-during-button {
+    margin-left:4px;
+}
 #combat .combat-rename {
     background:#181817;
     border-color:#665c4d;
@@ -1911,7 +1926,7 @@ button:active { transform: translateY(1px); }
 
 
 /* =====================================================
-   BETA 1.8 — ÉCRAN JOUEURS + HIT MARKER
+   BETA 1.9 — ÉCRAN JOUEURS + HIT MARKER + AJOUT EN COMBAT
    Couche visuelle/animation uniquement.
    ===================================================== */
 .combat-display-body {
@@ -2070,7 +2085,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.8
+        BETA 1.9
     </div>
 
 </header>
@@ -2660,7 +2675,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.8";
+const APP_VERSION = "BETA 1.9";
 
 
 /* =====================================================
@@ -5205,6 +5220,12 @@ function openCombat() {
     renderCombats();
 }
 
+function toggleCombatImportPanel() {
+    const panel = document.getElementById("combatImportPanel");
+    if (!panel) return;
+    panel.classList.toggle("collapsed");
+}
+
 function renderCombats() {
     const tabs = document.getElementById("combatTabs");
     const workspace = document.getElementById("combatWorkspace");
@@ -5259,14 +5280,15 @@ function renderCombatWorkspace(combat) {
                 onchange="renameCombat(${combat.id}, this.value)"
                 title="Nom du combat">
             ${combat.displayStarted ? `
-            <button class="secondary-button" onclick="endCombatDisplay()">⏹️ Fin de combat</button>` : ""}
+            <button class="secondary-button" onclick="endCombatDisplay()">⏹️ Fin de combat</button>
+            <button class="primary-button combat-add-during-button" onclick="toggleCombatImportPanel()" title="Ajouter un combattant pendant le combat">➕ Ajouter</button>` : ""}
             ${combat.displayStarted && !combat.combatEnded ? `
             <button class="secondary-button" onclick="combatDisplayPrevious()">◀️ Précédent</button>` : ""}
             ${combat.displayStarted && !combat.combatEnded ? `
             <button class="secondary-button" onclick="combatDisplayNext()">Suivant ▶️</button>` : ""}
         </div>
 
-        <div class="combat-import-panel ${combat.displayStarted ? "collapsed" : ""}">
+        <div id="combatImportPanel" class="combat-import-panel ${combat.displayStarted ? "collapsed" : ""}>
             <div class="combat-import-row">
                 <div class="combat-import-title">👥 Joueurs</div>
                 <div class="combat-import-option">
@@ -5865,15 +5887,25 @@ function writeCombatDisplayDocument() {
         </head>
         <body class="combat-display-body">
             <header class="combat-display-header">
-                <div>
-                    <div id="displayTitle" class="combat-display-title">⚔️ Combat</div>
-                    <div id="displayTurn" class="combat-display-turn">- Tour 1</div>
+                <div class="combat-display-title-wrap">
+                    <div id="displayTitle" class="combat-display-title">⚔️ Combat - Tour 1</div>
                 </div>
                 <div class="combat-display-controls">
                     <div id="displayTimer" class="combat-display-timer">⏱ 00:00:00</div>
-                    <button onclick="window.close()">✕</button>
+                    <button class="combat-display-fullscreen" onclick="toggleCombatDisplayFullscreen()" title="Plein écran">⛶</button>
+                    <button onclick="window.close()" title="Fermer">✕</button>
                 </div>
             </header>
+            <script>
+                function toggleCombatDisplayFullscreen(){
+                    const el = document.documentElement;
+                    if (!document.fullscreenElement) {
+                        if (el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+                    } else if (document.exitFullscreen) {
+                        document.exitFullscreen().catch(()=>{});
+                    }
+                }
+            <\/script>
             <div class="combat-display-ambient ambient-one"></div>
             <div class="combat-display-ambient ambient-two"></div>
             <main id="displayTrack" class="combat-display-track"></main>
@@ -6355,13 +6387,11 @@ function renderCombatDisplay() {
     }
 
     const title = combatDisplayWindow.document.getElementById("displayTitle");
-    const turn = combatDisplayWindow.document.getElementById("displayTurn");
     const track = combatDisplayWindow.document.getElementById("displayTrack");
 
-    if (!title || !turn || !track) return;
+    if (!title || !track) return;
 
-    title.textContent = `⚔️ ${combat.name}`;
-    turn.textContent = `- Tour ${combat.displayStarted ? (combat.currentTurn || 1) : 1}`;
+    title.textContent = `⚔️ ${combat.name} - Tour ${combat.displayStarted ? (combat.currentTurn || 1) : 1}`;
     const timer = combatDisplayWindow.document.getElementById("displayTimer");
     if (timer) timer.textContent = `⏱ ${formatCombatElapsed(getCombatElapsedMs(combat))}`;
 
