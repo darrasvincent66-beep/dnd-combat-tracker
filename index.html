@@ -545,22 +545,80 @@ text-align:center;
 color:#aaa;
 }
 .combat-import-panel {
-display:flex;
-flex-wrap:wrap;
-gap:10px;
-align-items:center;
-padding:14px;
-background:#242424;
-border:1px solid #3d3d3d;
-border-radius:10px;
+    display:flex;
+    flex-direction:column;
+    gap:9px;
+    padding:12px 14px;
+    background:#242424;
+    border:1px solid #3d3d3d;
+    border-radius:10px;
+}
+.combat-import-row {
+    display:flex;
+    align-items:center;
+    gap:12px;
+    min-height:46px;
+}
+.combat-import-title {
+    flex:0 0 105px;
+    font-size:16px;
+    font-weight:700;
+    white-space:nowrap;
+}
+.combat-import-option {
+    display:flex;
+    align-items:center;
+    gap:7px;
+    min-width:0;
+}
+.combat-import-label {
+    color:#aaa;
+    font-size:13px;
+    min-width:44px;
 }
 .combat-import-panel select {
-background:#181818;
-color:#fff;
-border:1px solid #555;
-border-radius:7px;
-padding:10px;
-min-width:220px;
+    background:#181818;
+    color:#fff;
+    border:1px solid #555;
+    border-radius:7px;
+    padding:9px 10px;
+    min-width:190px;
+}
+.combat-import-button {
+    min-width:108px;
+    padding:9px 14px;
+    white-space:nowrap;
+}
+.combat-import-npc-option {
+    flex:1;
+}
+.combat-import-npc-option select:first-child {
+    flex:1;
+    min-width:190px;
+}
+.combat-import-npc-option select:nth-child(2) {
+    min-width:125px;
+}
+@media (max-width: 900px) {
+    .combat-import-row {
+        flex-wrap:wrap;
+    }
+    .combat-import-title {
+        flex-basis:100%;
+    }
+    .combat-import-option {
+        flex:1 1 360px;
+    }
+}
+@media (max-width: 560px) {
+    .combat-import-option, .combat-import-npc-option {
+        width:100%;
+        flex-wrap:wrap;
+    }
+    .combat-import-panel select {
+        flex:1;
+        min-width:150px;
+    }
 }
 .combat-rename {
 background:#181818;
@@ -1196,7 +1254,7 @@ input:focus {
 
 
 
-/* ALPHA 1.8 — buffs de sorts séparés des états */
+/* ALPHA 1.9 — buffs de sorts séparés des états */
 .buff-multi .buff-menu {
     width: 320px !important;
     max-width: min(320px, calc(100vw - 24px)) !important;
@@ -1324,7 +1382,7 @@ input:focus {
 }
 
 
-/* ALPHA 1.8 - status menu: one checkbox controls the state */
+/* ALPHA 1.9 - status menu: one checkbox controls the state */
 .status-multi {
     position: relative;
     overflow: visible !important;
@@ -1370,10 +1428,9 @@ input:focus {
 .npc-card .portrait-placeholder, .npc-card .portrait { width: 72px; height: 72px; }
 
 
-/* ALPHA 1.8 — PNJ allié / ennemi */
+/* ALPHA 1.9 — PNJ allié / ennemi */
 .npc-ally-row { background: rgba(63,127,95,.22); }
-.combat-import-panel select { min-width: 145px; }
-#npcAllegianceImport { min-width: 115px; }
+#npcAllegianceImport { min-width: 125px; }
 
 </style>
 </head>
@@ -1390,7 +1447,7 @@ input:focus {
     </p>
 
     <div class="version">
-        ALPHA 1.8
+        ALPHA 1.9
     </div>
 
 </header>
@@ -1980,7 +2037,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "ALPHA 1.8";
+const APP_VERSION = "ALPHA 1.9";
 
 
 /* =====================================================
@@ -4591,40 +4648,60 @@ function renderCombatWorkspace(combat) {
         </div>
 
         <div class="combat-import-panel">
-            <strong>👥 Joueurs</strong>
-            <select id="playerGroupImport">
-                <option value="">Choisir un groupe…</option>
-                ${playerGroupOptions}
-            </select>
-            <button class="primary-button" onclick="importPlayerGroup()">Importer groupe</button>
-            <select id="playerImport">
-                <option value="">Choisir un joueur…</option>
-                ${players.map(player => `<option value="${escapeHtml(String(player.id))}">${escapeHtml(player.characterName || "Joueur")}</option>`).join("")}
-            </select>
-            <button class="secondary-button" onclick="importPlayer()">➕ Joueur</button>
+            <div class="combat-import-row">
+                <div class="combat-import-title">👥 Joueurs</div>
+                <div class="combat-import-option">
+                    <span class="combat-import-label">Groupe</span>
+                    <select id="playerGroupImport">
+                        <option value="">Choisir un groupe…</option>
+                        ${playerGroupOptions}
+                    </select>
+                    <button class="primary-button combat-import-button" onclick="importPlayerGroup()">Importer</button>
+                </div>
+                <div class="combat-import-option">
+                    <span class="combat-import-label">Solo</span>
+                    <select id="playerImport">
+                        <option value="">Choisir un joueur…</option>
+                        ${players.map(player => `<option value="${escapeHtml(String(player.id))}">${escapeHtml(player.characterName || "Joueur")}</option>`).join("")}
+                    </select>
+                    <button class="primary-button combat-import-button" onclick="importPlayer()">Importer</button>
+                </div>
+            </div>
 
-            <strong style="margin-left:8px;">👹 Monstres</strong>
-            <select id="monsterGroupImport">
-                <option value="">Choisir un groupe…</option>
-                ${monsterGroupOptions}
-            </select>
-            <button class="primary-button" onclick="importMonsterGroup()">Importer groupe</button>
-            <select id="monsterImport">
-                <option value="">Choisir un monstre…</option>
-                ${monsters.map(monster => `<option value="${escapeHtml(String(monster.id))}">${escapeHtml(monster.name || "Monstre")}</option>`).join("")}
-            </select>
-            <button class="secondary-button" onclick="importMonster()">➕ Monstre</button>
+            <div class="combat-import-row">
+                <div class="combat-import-title">👹 Monstres</div>
+                <div class="combat-import-option">
+                    <span class="combat-import-label">Groupe</span>
+                    <select id="monsterGroupImport">
+                        <option value="">Choisir un groupe…</option>
+                        ${monsterGroupOptions}
+                    </select>
+                    <button class="primary-button combat-import-button" onclick="importMonsterGroup()">Importer</button>
+                </div>
+                <div class="combat-import-option">
+                    <span class="combat-import-label">Solo</span>
+                    <select id="monsterImport">
+                        <option value="">Choisir un monstre…</option>
+                        ${monsters.map(monster => `<option value="${escapeHtml(String(monster.id))}">${escapeHtml(monster.name || "Monstre")}</option>`).join("")}
+                    </select>
+                    <button class="primary-button combat-import-button" onclick="importMonster()">Importer</button>
+                </div>
+            </div>
 
-            <strong style="margin-left:8px;">🧑‍🤝‍🧑 PNJ</strong>
-            <select id="npcImport">
-                <option value="">Choisir un PNJ…</option>
-                ${npcs.map(npc => `<option value="${escapeHtml(String(npc.id))}">${escapeHtml(npc.name)}</option>`).join("")}
-            </select>
-            <select id="npcAllegianceImport" title="Choisir le camp du PNJ">
-                <option value="ally">🟢 Allié</option>
-                <option value="enemy">🔴 Ennemi</option>
-            </select>
-            <button class="primary-button" onclick="importNPC()">Importer</button>
+            <div class="combat-import-row">
+                <div class="combat-import-title">🧑‍🤝‍🧑 PNJ</div>
+                <div class="combat-import-option combat-import-npc-option">
+                    <select id="npcImport">
+                        <option value="">Choisir un PNJ…</option>
+                        ${npcs.map(npc => `<option value="${escapeHtml(String(npc.id))}">${escapeHtml(npc.name)}</option>`).join("")}
+                    </select>
+                    <select id="npcAllegianceImport" title="Choisir le camp du PNJ">
+                        <option value="ally">🟢 Allié</option>
+                        <option value="enemy">🔴 Ennemi</option>
+                    </select>
+                    <button class="primary-button combat-import-button" onclick="importNPC()">Importer</button>
+                </div>
+            </div>
         </div>
 
         <div class="combat-table-wrap" style="margin-top:15px;">
