@@ -965,7 +965,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.16
+        V0.17
     </div>
 
 </header>
@@ -1450,7 +1450,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.16";
+const APP_VERSION = "V0.17";
 
 
 /* =====================================================
@@ -3796,8 +3796,12 @@ function renderCombatWorkspace(combat) {
             <button class="secondary-button" onclick="addManualFighter()">➕ Ajouter un combattant</button>
             <button class="secondary-button" onclick="sortCombatByInitiative()">↕️ Trier initiative</button>
             <button class="primary-button" onclick="launchCombatWindow()">▶️ Lancer le combat</button>
-            <button class="secondary-button" onclick="combatDisplayPrevious()">◀️ Précédent</button>
-            <button class="secondary-button" onclick="combatDisplayNext()">Suivant ▶️</button>
+            ${combat.displayStarted ? `
+            <button class="secondary-button" onclick="endCombatDisplay()">⏹️ Fin de combat</button>` : ""}
+            ${combat.displayStarted && !combat.combatEnded ? `
+            <button class="secondary-button" onclick="combatDisplayPrevious()">◀️ Précédent</button>` : ""}
+            ${combat.displayStarted && !combat.combatEnded ? `
+            <button class="secondary-button" onclick="combatDisplayNext()">Suivant ▶️</button>` : ""}
             <span class="combat-status">${combat.fighters.length} combattant(s)</span>
         </div>
 
@@ -4164,6 +4168,7 @@ let combatDisplayCombatId = null;
 
 function launchCombatWindow() {
     const combat = getActiveCombat();
+    combat.combatEnded = false;
 
     if (!combat) {
         alert("Crée d'abord un combat.");
@@ -4313,6 +4318,11 @@ function renderCombatResultOverlay(doc, combat) {
 
     const result = getCombatResultMessage(combat);
     if (!result) return;
+
+    if (!combat.combatEnded) {
+        combat.combatEnded = true;
+        saveCombats();
+    }
 
     const overlay = doc.createElement("div");
     overlay.id = "combatResultOverlay";
@@ -4531,6 +4541,21 @@ function getNextAliveIndex(combat, startIndex, direction) {
     }
 
     return -1;
+}
+
+function endCombatDisplay() {
+    const combat = combats.find(c => c.id === combatDisplayCombatId);
+    if (!combat) return;
+
+    combat.displayStarted = false;
+    combat.combatEnded = true;
+    saveCombats();
+
+    if (combatDisplayWindow && !combatDisplayWindow.closed) {
+        combatDisplayWindow.close();
+    }
+
+    renderCombats();
 }
 
 function combatDisplayNext() {
