@@ -1295,7 +1295,7 @@ input:focus {
 }
 
 
-/* ALPHA 1.2 - status menu: one checkbox controls the state */
+/* ALPHA 1.6 - status menu: one checkbox controls the state */
 .status-multi {
     position: relative;
     overflow: visible !important;
@@ -1341,7 +1341,7 @@ input:focus {
 .npc-card .portrait-placeholder, .npc-card .portrait { width: 72px; height: 72px; }
 
 
-/* ALPHA 1.5 — PNJ allié / ennemi */
+/* ALPHA 1.6 — PNJ allié / ennemi */
 .npc-ally-row { background: rgba(63,127,95,.22); }
 .combat-import-panel select { min-width: 145px; }
 #npcAllegianceImport { min-width: 115px; }
@@ -1361,7 +1361,7 @@ input:focus {
     </p>
 
     <div class="version">
-        ALPHA 1.2
+        ALPHA 1.6
     </div>
 
 </header>
@@ -1951,7 +1951,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "ALPHA 1.5";
+const APP_VERSION = "ALPHA 1.6";
 
 
 /* =====================================================
@@ -4605,7 +4605,7 @@ function renderCombatRow(fighter, index, combat = getActiveCombat()) {
         combat &&
         combat.displayStarted &&
         Number(combat.currentIndex) === index &&
-        !(fighter.type === "monster" && Number(fighter.hp) <= 0);
+        !((fighter.type === "monster" || fighter.type === "npc") && Number(fighter.hp) <= 0);
 
     const typeLabel =
         fighter.type === "player" ? "Joueur" :
@@ -5485,8 +5485,8 @@ function renderCombatDisplayCard(fighter, index, combat) {
     const friseStatuses = renderFriseStatuses(fighter);
 
     const enemySide = fighter.type === "monster" || (fighter.type === "npc" && fighter.allegiance === "enemy");
-    const isDead = (enemySide && hp <= 0) ||
-        fighter.type === "player" && fighter.deathSavesResult === "dead";
+    const isDead = ((fighter.type === "monster" || fighter.type === "npc") && hp <= 0) ||
+        (fighter.type === "player" && fighter.deathSavesResult === "dead");
     const isUnconscious = fighter.type === "player" && hp <= 0 && fighter.deathSavesResult !== "dead";
     const active = combat.displayStarted &&
         index === (Number(combat.currentIndex) || 0);
