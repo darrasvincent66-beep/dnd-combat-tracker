@@ -553,6 +553,34 @@ color:#aaa;
     border:1px solid #3d3d3d;
     border-radius:10px;
 }
+.combat-import-panel.collapsed {
+    max-height:0;
+    padding-top:0;
+    padding-bottom:0;
+    border-width:0;
+    gap:0;
+    overflow:hidden;
+    opacity:0;
+    margin:0;
+}
+.combat-post-import-actions {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-top:12px;
+}
+.combat-post-import-actions .combat-status {
+    margin-left:auto;
+}
+@media (max-width:560px) {
+    .combat-post-import-actions {
+        flex-wrap:wrap;
+    }
+    .combat-post-import-actions .combat-status {
+        width:100%;
+        margin-left:0;
+    }
+}
 .combat-import-row {
     display:flex;
     align-items:center;
@@ -1430,7 +1458,7 @@ input:focus {
 
 /* ALPHA 1.10 — PNJ allié / ennemi */
 .npc-ally-row { background: rgba(63,127,95,.22); }
-#npcAllegianceImport { min-width: 125px; }
+#npcAllegianceImport, #manualAllegianceImport { min-width: 125px; }
 
 </style>
 </head>
@@ -2037,7 +2065,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "ALPHA 1.10";
+const APP_VERSION = "ALPHA 1.11";
 
 
 /* =====================================================
@@ -4635,18 +4663,15 @@ function renderCombatWorkspace(combat) {
                 value="${escapeHtml(combat.name)}"
                 onchange="renameCombat(${combat.id}, this.value)"
                 title="Nom du combat">
-            <button class="secondary-button" onclick="sortCombatByInitiative()">↕️ Trier initiative</button>
-            <button class="primary-button" onclick="launchCombatWindow()">▶️ Lancer le combat</button>
             ${combat.displayStarted ? `
             <button class="secondary-button" onclick="endCombatDisplay()">⏹️ Fin de combat</button>` : ""}
             ${combat.displayStarted && !combat.combatEnded ? `
             <button class="secondary-button" onclick="combatDisplayPrevious()">◀️ Précédent</button>` : ""}
             ${combat.displayStarted && !combat.combatEnded ? `
             <button class="secondary-button" onclick="combatDisplayNext()">Suivant ▶️</button>` : ""}
-            <span class="combat-status">${combat.fighters.length} combattant(s)</span>
         </div>
 
-        <div class="combat-import-panel">
+        <div class="combat-import-panel ${combat.displayStarted ? "collapsed" : ""}">
             <div class="combat-import-row">
                 <div class="combat-import-title">👥 Joueurs</div>
                 <div class="combat-import-option">
@@ -4699,9 +4724,19 @@ function renderCombatWorkspace(combat) {
                         <option value="enemy">🔴 Ennemi</option>
                     </select>
                     <button class="primary-button combat-import-button" onclick="importNPC()">Importer</button>
+                    <select id="manualAllegianceImport" title="Choisir le camp de la ligne vierge">
+                        <option value="ally">🟢 Allié</option>
+                        <option value="enemy">🔴 Ennemi</option>
+                    </select>
                     <button class="secondary-button combat-import-button" onclick="addManualFighter()">➕ Ajouter une ligne vierge</button>
                 </div>
             </div>
+        </div>
+
+        <div class="combat-post-import-actions">
+            <button class="secondary-button" onclick="sortCombatByInitiative()">↕️ Trier initiative</button>
+            <button class="primary-button" onclick="launchCombatWindow()">▶️ Lancer le combat</button>
+            <span class="combat-status">${combat.fighters.length} combattant(s)</span>
         </div>
 
         <div class="combat-table-wrap" style="margin-top:15px;">
@@ -4732,6 +4767,7 @@ function renderCombatRow(fighter, index, combat = getActiveCombat()) {
         fighter.type === "player" ? "player-row" :
         fighter.type === "monster" ? "monster-row" :
         fighter.type === "npc" ? (fighter.allegiance === "enemy" ? "monster-row" : "npc-ally-row") :
+        fighter.type === "manual" ? (fighter.allegiance === "enemy" ? "monster-row" : "player-row") :
         "manual-row";
 
     const isActiveTurn =
@@ -4744,6 +4780,7 @@ function renderCombatRow(fighter, index, combat = getActiveCombat()) {
         fighter.type === "player" ? "Joueur" :
         fighter.type === "monster" ? "Monstre" :
         fighter.type === "npc" ? (fighter.allegiance === "enemy" ? "PNJ ennemi" : "PNJ allié") :
+        fighter.type === "manual" ? (fighter.allegiance === "enemy" ? "Ligne ennemie" : "Ligne alliée") :
         "Manuel";
 
     const initiative = fighter.initiative ?? "";
@@ -4872,9 +4909,13 @@ function addManualFighter() {
     const combat = getActiveCombat();
     if (!combat) return;
 
+    const allegianceSelect = document.getElementById("manualAllegianceImport");
+    const allegiance = allegianceSelect && allegianceSelect.value === "enemy" ? "enemy" : "ally";
+
     combat.fighters.push({
         id: Date.now() + Math.random(),
         type: "manual",
+        allegiance,
         name: "Nouveau combattant",
         initiative: "",
         concentration: false,
@@ -5254,13 +5295,13 @@ function getCombatResultMessage(combat) {
     const playersInCombat =
         (combat.fighters || []).filter(
             fighter => fighter.type === "player" ||
-                (fighter.type === "npc" && fighter.allegiance !== "enemy")
+                ((fighter.type === "npc" || fighter.type === "manual") && fighter.allegiance !== "enemy")
         );
 
     const monstersInCombat =
         (combat.fighters || []).filter(
             fighter => fighter.type === "monster" ||
-                (fighter.type === "npc" && fighter.allegiance === "enemy")
+                ((fighter.type === "npc" || fighter.type === "manual") && fighter.allegiance === "enemy")
         );
 
     if (
@@ -5670,7 +5711,8 @@ function renderCombatDisplay() {
         combat.displayStarted &&
         combat.fighters[Number(combat.currentIndex) || 0] &&
         (combat.fighters[Number(combat.currentIndex) || 0].type === "monster" ||
-         (combat.fighters[Number(combat.currentIndex) || 0].type === "npc" &&
+         ((combat.fighters[Number(combat.currentIndex) || 0].type === "npc" ||
+           combat.fighters[Number(combat.currentIndex) || 0].type === "manual") &&
           combat.fighters[Number(combat.currentIndex) || 0].allegiance === "enemy")) &&
         Number(combat.fighters[Number(combat.currentIndex) || 0].hp) <= 0
     ) {
@@ -5757,7 +5799,8 @@ function renderCombatDisplayCard(fighter, index, combat) {
     const friseStatuses = renderFriseStatuses(fighter);
     const friseBuffs = renderFriseBuffs(fighter);
 
-    const enemySide = fighter.type === "monster" || (fighter.type === "npc" && fighter.allegiance === "enemy");
+    const enemySide = fighter.type === "monster" ||
+        ((fighter.type === "npc" || fighter.type === "manual") && fighter.allegiance === "enemy");
     const isDead = ((fighter.type === "monster" || fighter.type === "npc") && hp <= 0) ||
         (fighter.type === "player" && fighter.deathSavesResult === "dead");
     const isUnconscious = fighter.type === "player" && hp <= 0 && fighter.deathSavesResult !== "dead";
@@ -5776,7 +5819,7 @@ function renderCombatDisplayCard(fighter, index, combat) {
 
     return `
         <article class="combat-display-card
-            ${fighter.type === "player" || (fighter.type === "npc" && fighter.allegiance !== "enemy") ? "player-card" : "monster-card"}
+            ${!enemySide ? "player-card" : "monster-card"}
             ${active ? "active" : ""}
             ${isDead ? "dead" : ""}">
             <div class="combat-display-portrait">
@@ -5803,7 +5846,9 @@ function startCombatDisplayState() {
     const firstAlive =
         (combat.fighters || []).findIndex(
             fighter =>
-                !((fighter.type === "monster" || (fighter.type === "npc" && fighter.allegiance === "enemy")) && Number(fighter.hp) <= 0)
+                !((fighter.type === "monster" ||
+                   ((fighter.type === "npc" || fighter.type === "manual") && fighter.allegiance === "enemy")) &&
+                  Number(fighter.hp) <= 0)
         );
 
     combat.currentIndex =
@@ -5830,10 +5875,9 @@ function getNextAliveIndex(combat, startIndex, direction) {
 
         const fighter = fighters[index];
 
-        if (
-            fighter.type !== "monster" ||
-            Number(fighter.hp) > 0
-        ) {
+        if (!((fighter.type === "monster" ||
+               ((fighter.type === "npc" || fighter.type === "manual") && fighter.allegiance === "enemy")) &&
+              Number(fighter.hp) <= 0)) {
             return index;
         }
     }
