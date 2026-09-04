@@ -1024,6 +1024,83 @@ input:focus {
 .death-save-box.success.checked { background: rgba(60,180,90,.35); }
 .death-save-box.failure.checked { background: rgba(210,70,70,.35); }
 
+
+/* V0.20 - multi-state display and death-save squares */
+.status-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    align-items: center;
+    max-width: 100%;
+}
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 6px;
+    border-radius: 5px;
+    background: rgba(255,255,255,.10);
+    white-space: normal;
+    line-height: 1.2;
+    font-size: 12px;
+}
+.status-none { opacity: .65; }
+.status-menu-row {
+    grid-template-columns: minmax(0,1fr) 28px 28px;
+}
+.status-add.active {
+    background: rgba(80,220,110,.65) !important;
+    box-shadow: 0 0 0 1px rgba(130,255,150,.8), 0 0 8px rgba(80,220,110,.35);
+    color: #fff;
+}
+.status-add:not(.active) { opacity: .55; }
+.status-remove.inactive { opacity: .45; }
+
+.death-saves-row {
+    grid-template-columns: 70px repeat(3, 30px);
+    gap: 5px;
+}
+.death-save-box {
+    width: 30px !important;
+    height: 30px !important;
+    padding: 0 !important;
+    border: 2px solid rgba(255,255,255,.32) !important;
+    background: transparent !important;
+    border-radius: 5px;
+    opacity: 1 !important;
+}
+.death-save-box.success.checked {
+    background: rgba(60,180,90,.75) !important;
+    border-color: rgba(100,230,120,.95) !important;
+}
+.death-save-box.failure.checked {
+    background: rgba(210,70,70,.78) !important;
+    border-color: rgba(240,100,100,.95) !important;
+}
+.death-frise-label {
+    width: 68px;
+}
+.death-frise-box {
+    width: 20px !important;
+    height: 20px !important;
+    padding: 0;
+    opacity: 1 !important;
+    border: 2px solid rgba(255,255,255,.32);
+    background: transparent;
+}
+.death-frise-box.success.checked {
+    background: rgba(60,180,90,.75);
+    border-color: rgba(100,230,120,.95);
+}
+.death-frise-box.failure.checked {
+    background: rgba(210,70,70,.78);
+    border-color: rgba(240,100,100,.95);
+}
+.death-saves-result, .death-frise-result {
+    font-weight: 700;
+    padding: 4px 7px;
+    border-radius: 5px;
+}
+
 </style>
 </head>
 
@@ -1039,7 +1116,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.19
+        V0.20
     </div>
 
 </header>
@@ -1524,7 +1601,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.19";
+const APP_VERSION = "V0.20";
 
 
 /* =====================================================
@@ -4476,8 +4553,24 @@ function toggleFighterStatus(fighterId, status) {
 }
 
 function getStatusLabel(status) {
-    const found = COMBAT_EFFECTS.find(e => e[0] === status);
-    return found ? found[1] : status;
+    const labels = {
+        blinded: ["👁️", "Aveuglé"],
+        charmed: ["💗", "Charmé"],
+        deafened: ["🔇", "Assourdi"],
+        frightened: ["😨", "Effrayé"],
+        grappled: ["🤼", "Agrippé"],
+        incapacitated: ["⛔", "Incapable d'agir"],
+        invisible: ["🫥", "Invisible"],
+        paralyzed: ["🧊", "Paralysé"],
+        petrified: ["🗿", "Pétrifié"],
+        poisoned: ["☠️", "Empoisonné"],
+        prone: ["🧎", "À terre"],
+        restrained: ["⛓️", "Entravé"],
+        stunned: ["💫", "Étourdi"],
+        unconscious: ["😵", "Inconscient"]
+    };
+    const item = labels[status] || ["•", status];
+    return `${item[0]} ${item[1]}`;
 }
 
 function renderStatusMultiSelect(fighter) {
@@ -4545,28 +4638,37 @@ function setDeathSave(fighterId, type, index, value) {
 }
 
 function renderDeathSaves(fighter) {
-    if (!fighter || Number(fighter.hp) > 0) return "";
-
-    // Only players use the stabilization tracker.
-    if (fighter.type !== "player") return "";
+    resetDeathSavesIfRecovered(fighter);
+    if (!fighter || Number(fighter.hp) > 0 || fighter.type !== "player") return "";
 
     const saves = getDeathSaveState(fighter);
+
+    if (fighter.deathSavesResult === "dead") {
+        return `<div class="death-saves">
+            <div class="death-saves-result dead">💀 MORT</div>
+        </div>`;
+    }
+
+    if (fighter.deathSavesResult === "stable") {
+        return `<div class="death-saves">
+            <div class="death-saves-result stable">🟢 STABILISÉ</div>
+        </div>`;
+    }
 
     const successBoxes = [0, 1, 2].map(i =>
         `<button class="death-save-box success ${i < saves.successes ? "checked" : ""}"
             onclick="setDeathSave('${String(fighter.id).replace(/'/g, "\\'")}', 'success', ${i}, ${i >= saves.successes})"
-            title="Réussite ${i + 1}">✓</button>`
+            title="Réussite ${i + 1}"></button>`
     ).join("");
 
     const failureBoxes = [0, 1, 2].map(i =>
         `<button class="death-save-box failure ${i < saves.failures ? "checked" : ""}"
             onclick="setDeathSave('${String(fighter.id).replace(/'/g, "\\'")}', 'failure', ${i}, ${i >= saves.failures})"
-            title="Échec ${i + 1}">✕</button>`
+            title="Échec ${i + 1}"></button>`
     ).join("");
 
     return `
         <div class="death-saves">
-            <div class="death-saves-title">Stabilisation</div>
             <div class="death-saves-row">
                 <span>Réussites</span>${successBoxes}
             </div>
@@ -4579,12 +4681,31 @@ function renderDeathSaves(fighter) {
 
 function renderDeathSavesFrise(fighter) {
     if (!fighter || fighter.type !== "player" || Number(fighter.hp) > 0) return "";
-    if (fighter.deathSavesResult === "dead") return `<div class="death-frise-result dead">💀 MORT</div>`;
-    if (fighter.deathSavesResult === "stable") return `<div class="death-frise-result stable">🟢 STABILISÉ</div>`;
+
     const saves = getDeathSaveState(fighter);
-    const ok = [0,1,2].map(i => `<span class="death-frise-box success ${i < saves.successes ? "checked" : ""}">✓</span>`).join("");
-    const fail = [0,1,2].map(i => `<span class="death-frise-box failure ${i < saves.failures ? "checked" : ""}">✕</span>`).join("");
-    return `<div class="death-frise"><div><span class="death-frise-label">Réussites</span>${ok}</div><div><span class="death-frise-label">Échecs</span>${fail}</div></div>`;
+
+    if (fighter.deathSavesResult === "dead") {
+        return `<div class="death-frise-result dead">💀 MORT</div>`;
+    }
+
+    if (fighter.deathSavesResult === "stable") {
+        return `<div class="death-frise-result stable">🟢 STABILISÉ</div>`;
+    }
+
+    const successBoxes = [0,1,2].map(i =>
+        `<span class="death-frise-box success ${i < saves.successes ? "checked" : ""}" title="Réussite ${i + 1}"></span>`
+    ).join("");
+
+    const failureBoxes = [0,1,2].map(i =>
+        `<span class="death-frise-box failure ${i < saves.failures ? "checked" : ""}" title="Échec ${i + 1}"></span>`
+    ).join("");
+
+    return `
+        <div class="death-frise">
+            <div><span class="death-frise-label">Réussites</span>${successBoxes}</div>
+            <div><span class="death-frise-label">Échecs</span>${failureBoxes}</div>
+        </div>
+    `;
 }
 
 function renderCombatDisplay() {
