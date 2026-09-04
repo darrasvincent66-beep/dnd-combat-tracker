@@ -416,6 +416,47 @@ border-top:1px solid #3d3d3d;
 text-align:center;
 vertical-align:middle;
 }
+.library-backup-panel {
+max-width:1100px;
+margin:0 auto 18px;
+padding:14px 16px;
+border:1px solid #4a4a4a;
+border-radius:12px;
+background:#222;
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:14px;
+flex-wrap:wrap;
+}
+.library-backup-panel > div:first-child {
+display:flex;
+flex-direction:column;
+gap:4px;
+}
+.library-backup-panel span {
+font-size:12px;
+color:#aaa;
+}
+.library-backup-actions {
+display:flex;
+gap:8px;
+flex-wrap:wrap;
+}
+.combat-row.active-turn-row {
+transform:scale(1.012);
+position:relative;
+z-index:2;
+box-shadow:0 0 0 2px #f2c94c, 0 0 14px rgba(242,201,76,.22);
+}
+.combat-row.active-turn-row td {
+border-top-color:#f2c94c;
+border-bottom:1px solid rgba(242,201,76,.45);
+}
+.combat-row.active-turn-row .combat-number {
+font-weight:900;
+color:#f2c94c;
+}
 .combat-row.player-row { background:rgba(63,127,95,.22); }
 .combat-row.monster-row { background:rgba(130,60,60,.22); }
 .combat-row.manual-row { background:#292929; }
@@ -684,6 +725,27 @@ justify-content:center;
 color:#666;
 font-size:28px;
 }
+.combat-display-result {
+position:fixed;
+inset:0;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+background:rgba(10,10,10,.88);
+z-index:50;
+text-align:center;
+}
+.combat-display-result-title {
+font-size:72px;
+font-weight:900;
+text-shadow:0 4px 18px #000;
+}
+.combat-display-result-subtitle {
+font-size:24px;
+color:#ccc;
+margin-top:12px;
+}
 .combat-display-empty {
 padding:80px 20px;
 text-align:center;
@@ -936,6 +998,22 @@ input:focus {
 
     </div>
 
+
+    <div class="library-backup-panel">
+        <div>
+            <strong>🛡️ Sauvegarde de campagne</strong>
+            <span>Joueurs, monstres, groupes et combats</span>
+        </div>
+        <div class="library-backup-actions">
+            <button class="secondary-button" onclick="exportCampaign()">💾 Sauvegarder la campagne</button>
+            <button class="secondary-button" onclick="document.getElementById('campaignImportInput').click()">📂 Restaurer une campagne</button>
+            <input id="campaignImportInput"
+                   type="file"
+                   accept=".json,application/json"
+                   style="display:none"
+                   onchange="importCampaign(this.files[0])">
+        </div>
+    </div>
 
     <div class="cards">
 
@@ -1363,7 +1441,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.14";
+const APP_VERSION = "V0.15";
 
 
 /* =====================================================
@@ -1473,7 +1551,7 @@ function exportCampaign() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "dnd-campagne-sauvegarde.json";
+    a.download = `dnd-campagne-${new Date().toISOString().slice(0,10)}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -3568,6 +3646,41 @@ function loadCombats() {
         const saved = localStorage.getItem(COMBAT_STORAGE_KEY);
         combats = saved ? JSON.parse(saved) : recoverIfEmpty(COMBAT_STORAGE_KEY);
         if (!Array.isArray(combats)) combats = [];
+
+        // Migration : les anciens combattants n'avaient pas toujours maxHp.
+        // On tente d'abord de retrouver les PV de base dans la bibliothèque.
+        combats.forEach(combat => {
+            if (!Array.isArray(combat.fighters)) return;
+
+            combat.fighters.forEach(fighter => {
+                if (Number(fighter.maxHp) > 0) return;
+
+                let baseHp = Number(fighter.hp) || 0;
+
+                if (fighter.type === "monster" && fighter.sourceId != null) {
+                    const source = monsters.find(
+                        monster => String(monster.id) === String(fighter.sourceId)
+                    );
+                    if (source && Number(source.hp) > 0) {
+                        baseHp = Number(source.hp);
+                    }
+                }
+
+                if (fighter.type === "player" && fighter.sourceId != null) {
+                    const source = players.find(
+                        player => String(player.id) === String(fighter.sourceId)
+                    );
+                    if (source && Number(source.hp) > 0) {
+                        baseHp = Number(source.hp);
+                    }
+                }
+
+                fighter.maxHp = Math.max(
+                    Number(fighter.hp) || 0,
+                    baseHp
+                );
+            });
+        });
     } catch (error) {
         console.error("Erreur de chargement des combats :", error);
         combats = [];
@@ -3647,7 +3760,7 @@ function renderCombatWorkspace(combat) {
     ).join("");
 
     const rows = combat.fighters && combat.fighters.length
-        ? combat.fighters.map((fighter, index) => renderCombatRow(fighter, index)).join("")
+        ? combat.fighters.map((fighter, index) => renderCombatRow(fighter, index, combat)).join("")
         : `<tr><td colspan="10" class="combat-empty">
                 Aucun combattant. Importe un groupe ou ajoute une ligne manuellement.
            </td></tr>`;
@@ -3662,6 +3775,8 @@ function renderCombatWorkspace(combat) {
             <button class="secondary-button" onclick="addManualFighter()">➕ Ajouter un combattant</button>
             <button class="secondary-button" onclick="sortCombatByInitiative()">↕️ Trier initiative</button>
             <button class="primary-button" onclick="launchCombatWindow()">▶️ Lancer le combat</button>
+            <button class="secondary-button" onclick="combatDisplayPrevious()">◀️ Précédent</button>
+            <button class="secondary-button" onclick="combatDisplayNext()">Suivant ▶️</button>
             <span class="combat-status">${combat.fighters.length} combattant(s)</span>
         </div>
 
@@ -3703,10 +3818,16 @@ function renderCombatWorkspace(combat) {
     `;
 }
 
-function renderCombatRow(fighter, index) {
+function renderCombatRow(fighter, index, combat = getActiveCombat()) {
     const rowClass =
         fighter.type === "player" ? "player-row" :
         fighter.type === "monster" ? "monster-row" : "manual-row";
+
+    const isActiveTurn =
+        combat &&
+        combat.displayStarted &&
+        Number(combat.currentIndex) === index &&
+        !(fighter.type === "monster" && Number(fighter.hp) <= 0);
 
     const typeLabel =
         fighter.type === "player" ? "Joueur" :
@@ -3721,7 +3842,7 @@ function renderCombatRow(fighter, index) {
     const ac = fighter.ac ?? "";
 
     return `
-        <tr class="combat-row ${rowClass}" data-index="${index}">
+        <tr class="combat-row ${rowClass} ${isActiveTurn ? "active-turn-row" : ""}" data-index="${index}">
             <td class="combat-number">${index + 1}</td>
 
             <td>
@@ -3951,6 +4072,7 @@ function importPlayerGroup() {
             advantage: false,
             disadvantage: false,
             hp: Number(player.hp) || 0,
+            maxHp: Number(player.hp) || 0,
             ac: Number(player.ac) || 0,
             effect: "",
             imageId: player.imageId || null
@@ -3997,6 +4119,7 @@ function importMonsterGroup() {
             advantage: false,
             disadvantage: false,
             hp: Number(monster.hp) || 0,
+            maxHp: Number(monster.hp) || 0,
             ac: Number(monster.ac) || 0,
             effect: "",
             imageId: monster.imageId || null,
@@ -4083,8 +4206,6 @@ function writeCombatDisplayDocument() {
                     <div id="displayTurn" class="combat-display-turn">Préparation</div>
                 </div>
                 <div class="combat-display-controls">
-                    <button onclick="window.opener.combatDisplayPrevious()">◀ Tour précédent</button>
-                    <button onclick="window.opener.combatDisplayNext()">Tour suivant ▶</button>
                     <button onclick="window.close()">✕ Fermer</button>
                 </div>
             </header>
@@ -4114,11 +4235,103 @@ function getDisplayVisibleCount(combat) {
     );
 }
 
+function getCombatResultMessage(combat) {
+    const playersInCombat =
+        (combat.fighters || []).filter(
+            fighter => fighter.type === "player"
+        );
+
+    const monstersInCombat =
+        (combat.fighters || []).filter(
+            fighter => fighter.type === "monster"
+        );
+
+    if (
+        playersInCombat.length === 0 ||
+        monstersInCombat.length === 0
+    ) {
+        return null;
+    }
+
+    const livingPlayers =
+        playersInCombat.filter(
+            fighter => Number(fighter.hp) > 0
+        );
+
+    const livingMonsters =
+        monstersInCombat.filter(
+            fighter => Number(fighter.hp) > 0
+        );
+
+    if (
+        livingMonsters.length === 0 &&
+        livingPlayers.length > 0
+    ) {
+        return {
+            title: "🏆 VICTOIRE !",
+            subtitle: "Tous les monstres sont vaincus."
+        };
+    }
+
+    if (
+        livingPlayers.length === 0 &&
+        livingMonsters.length > 0
+    ) {
+        return {
+            title: "💀 GAME OVER",
+            subtitle: "Tous les joueurs sont hors de combat."
+        };
+    }
+
+    return null;
+}
+
+function renderCombatResultOverlay(doc, combat) {
+    const old = doc.getElementById("combatResultOverlay");
+    if (old) old.remove();
+
+    const result = getCombatResultMessage(combat);
+    if (!result) return;
+
+    const overlay = doc.createElement("div");
+    overlay.id = "combatResultOverlay";
+    overlay.className = "combat-display-result";
+    overlay.innerHTML = `
+        <div class="combat-display-result-title">
+            ${result.title}
+        </div>
+        <div class="combat-display-result-subtitle">
+            ${result.subtitle}
+        </div>
+    `;
+
+    doc.body.appendChild(overlay);
+}
+
 function renderCombatDisplay() {
     if (!combatDisplayWindow || combatDisplayWindow.closed) return;
 
     const combat = combats.find(c => c.id === combatDisplayCombatId);
     if (!combat) return;
+
+    if (
+        combat.displayStarted &&
+        combat.fighters[Number(combat.currentIndex) || 0] &&
+        combat.fighters[Number(combat.currentIndex) || 0].type === "monster" &&
+        Number(combat.fighters[Number(combat.currentIndex) || 0].hp) <= 0
+    ) {
+        const nextAlive = getNextAliveIndex(
+            combat,
+            Number(combat.currentIndex) || 0,
+            1
+        );
+
+        if (nextAlive >= 0) {
+            combat.currentIndex = nextAlive;
+            saveCombats();
+            renderCombats();
+        }
+    }
 
     const title = combatDisplayWindow.document.getElementById("displayTitle");
     const turn = combatDisplayWindow.document.getElementById("displayTurn");
@@ -4152,6 +4365,7 @@ function renderCombatDisplay() {
     }).join("");
 
     track.innerHTML = cards;
+    renderCombatResultOverlay(combatDisplayWindow.document, combat);
 }
 
 function getImageSource(imageId) {
@@ -4220,11 +4434,47 @@ function startCombatDisplayState() {
 
     combat.displayStarted = true;
     combat.currentTurn = 1;
-    combat.currentIndex = 0;
+
+    const firstAlive =
+        (combat.fighters || []).findIndex(
+            fighter =>
+                fighter.type !== "monster" ||
+                Number(fighter.hp) > 0
+        );
+
+    combat.currentIndex =
+        firstAlive >= 0 ? firstAlive : 0;
+
     combat.displayVisibleCount = 1;
 
     saveCombats();
     renderCombatDisplay();
+    renderCombats();
+}
+
+function getNextAliveIndex(combat, startIndex, direction) {
+    const fighters = combat.fighters || [];
+    if (!fighters.length) return -1;
+
+    let index = Number(startIndex);
+    if (!Number.isFinite(index)) index = 0;
+
+    for (let step = 0; step < fighters.length; step++) {
+        index =
+            (index + direction + fighters.length) %
+            fighters.length;
+
+        const fighter = fighters[index];
+
+        if (
+            fighter.type !== "monster" ||
+            Number(fighter.hp) > 0
+        ) {
+            return index;
+        }
+    }
+
+    return -1;
 }
 
 function combatDisplayNext() {
@@ -4233,22 +4483,41 @@ function combatDisplayNext() {
 
     if (!combat.displayStarted) {
         startCombatDisplayState();
+        renderCombats();
         return;
     }
 
-    combat.currentIndex = (Number(combat.currentIndex) + 1) % combat.fighters.length;
+    const currentIndex = Number(combat.currentIndex) || 0;
+    const nextIndex = getNextAliveIndex(
+        combat,
+        currentIndex,
+        1
+    );
 
-    if (combat.currentIndex === 0) {
-        combat.currentTurn = (Number(combat.currentTurn) || 1) + 1;
+    if (nextIndex < 0) {
+        renderCombatDisplay();
+        renderCombats();
+        return;
     }
+
+    if (nextIndex <= currentIndex) {
+        combat.currentTurn =
+            (Number(combat.currentTurn) || 1) + 1;
+    }
+
+    combat.currentIndex = nextIndex;
 
     combat.displayVisibleCount = Math.max(
         Number(combat.displayVisibleCount) || 1,
-        Math.min(combat.fighters.length, Number(combat.displayVisibleCount) + 1)
+        Math.min(
+            combat.fighters.length,
+            (Number(combat.displayVisibleCount) || 1) + 1
+        )
     );
 
     saveCombats();
     renderCombatDisplay();
+    renderCombats();
 }
 
 function combatDisplayPrevious() {
@@ -4257,19 +4526,37 @@ function combatDisplayPrevious() {
 
     if (!combat.displayStarted) {
         startCombatDisplayState();
+        renderCombats();
         return;
     }
 
-    combat.currentIndex = (Number(combat.currentIndex) - 1 + combat.fighters.length) %
-        combat.fighters.length;
+    const currentIndex = Number(combat.currentIndex) || 0;
+    const previousIndex = getNextAliveIndex(
+        combat,
+        currentIndex,
+        -1
+    );
 
-    if (combat.currentIndex === combat.fighters.length - 1) {
-        combat.currentTurn = Math.max(1, (Number(combat.currentTurn) || 1) - 1);
+    if (previousIndex < 0) {
+        renderCombatDisplay();
+        renderCombats();
+        return;
     }
+
+    if (previousIndex > currentIndex) {
+        combat.currentTurn = Math.max(
+            1,
+            (Number(combat.currentTurn) || 1) - 1
+        );
+    }
+
+    combat.currentIndex = previousIndex;
 
     saveCombats();
     renderCombatDisplay();
+    renderCombats();
 }
+
 
 
 async function initializeApp() {
