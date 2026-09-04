@@ -1295,7 +1295,7 @@ input:focus {
 }
 
 
-/* ALPHA 1.1 - status menu: keep the complete menu visible inside the table */
+/* ALPHA 1.2 - status menu: one checkbox controls the state */
 .status-multi {
     position: relative;
     overflow: visible !important;
@@ -1303,20 +1303,36 @@ input:focus {
 .status-menu {
     left: auto !important;
     right: 0 !important;
-    width: 360px !important;
-    max-width: min(360px, calc(100vw - 24px)) !important;
+    width: 300px !important;
+    max-width: min(300px, calc(100vw - 24px)) !important;
     box-sizing: border-box;
 }
 .status-menu-head, .status-menu-row {
-    grid-template-columns: minmax(0,1fr) 44px 44px !important;
+    grid-template-columns: minmax(0,1fr) 44px !important;
 }
-.status-menu-head span:not(:first-child) {
+.status-menu-head span:last-child {
     white-space: normal;
     text-align: center;
 }
 .status-menu-label {
     overflow: visible;
     text-overflow: clip;
+}
+.status-check-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+}
+.status-check {
+    width: 21px;
+    height: 21px;
+    margin: 0;
+    accent-color: #45d06f;
+    cursor: pointer;
+}
+.status-menu-row.active .status-check {
+    filter: drop-shadow(0 0 4px rgba(70,205,100,.45));
 }
 
 </style>
@@ -1334,7 +1350,7 @@ input:focus {
     </p>
 
     <div class="version">
-        ALPHA 1.1
+        ALPHA 1.2
     </div>
 
 </header>
@@ -1819,7 +1835,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "ALPHA 1.1";
+const APP_VERSION = "ALPHA 1.2";
 
 
 /* =====================================================
@@ -4802,16 +4818,13 @@ function renderStatusMultiSelect(fighter) {
             const active = selected.includes(value);
             return `<div class="status-menu-row ${active ? "active" : ""}">
                 <span class="status-menu-label">${escapeHtml(label)}</span>
-                <button type="button"
-                        class="status-add ${active ? "active" : ""}"
-                        onclick="toggleFighterStatus('${safeId}','${value}')"
-                        title="${active ? "État déjà appliqué" : "Appliquer cet état"}
-                        aria-label="${active ? "État déjà appliqué" : "Appliquer cet état"}">✓</button>
-                <button type="button"
-                        class="status-remove ${active ? "active" : "inactive"}"
-                        onclick="${active ? `toggleFighterStatus('${safeId}','${value}')` : 'return false;'}"
-                        title="${active ? "Retirer cet état" : "État non appliqué"}"
-                        aria-label="${active ? "Retirer cet état" : "État non appliqué"}">✕</button>
+                <label class="status-check-wrap" title="${active ? "État appliqué — décocher pour le retirer" : "Cocher pour appliquer cet état"}">
+                    <input type="checkbox"
+                           class="status-check"
+                           ${active ? "checked" : ""}
+                           onchange="toggleFighterStatus('${safeId}','${value}')"
+                           aria-label="${active ? "État appliqué, décocher pour retirer" : "État non appliqué, cocher pour appliquer"}">
+                </label>
             </div>`;
         }).join("");
 
@@ -4825,12 +4838,9 @@ function renderStatusMultiSelect(fighter) {
         </summary>
         <div class="status-menu">
             <div class="status-menu-head">
-                <span>États</span><span>Ajouter</span><span>Retirer</span>
+                <span>États</span><span>Appliqué</span>
             </div>
             ${rows}
-            <div class="status-clear-row">
-                <button type="button" onclick="clearFighterStatuses('${safeId}')">✕ Effacer tous les états</button>
-            </div>
         </div>
     </details>`;
 }
