@@ -1861,6 +1861,154 @@ button:active { transform: translateY(1px); }
     box-shadow:inset 0 0 30px rgba(0,0,0,.16);
 }
 
+
+
+
+
+/* =====================================================
+   BETA 1.2 — ÉCRAN JOUEURS IMMERSIF ET DYNAMIQUE
+   Couche visuelle/animation uniquement.
+   ===================================================== */
+.combat-display-body {
+    position: relative;
+    overflow: hidden !important;
+    background:
+        radial-gradient(circle at 50% 18%, rgba(211,164,72,.14), transparent 24%),
+        radial-gradient(circle at 15% 70%, rgba(55,117,88,.09), transparent 28%),
+        radial-gradient(circle at 85% 70%, rgba(120,48,48,.10), transparent 28%),
+        linear-gradient(135deg,#0b0b0a,#171411 48%,#090909);
+}
+.combat-display-body::before {
+    content:"";
+    position:fixed; inset:-20%;
+    pointer-events:none;
+    background:
+        radial-gradient(circle at 50% 35%, rgba(255,216,133,.07), transparent 18%),
+        radial-gradient(circle at 20% 80%, rgba(80,180,120,.055), transparent 15%),
+        radial-gradient(circle at 80% 80%, rgba(190,70,70,.055), transparent 15%);
+    animation: combat-ambient-pulse 7s ease-in-out infinite alternate;
+    z-index:0;
+}
+.combat-display-header, .combat-display-track { position:relative; z-index:2; }
+.combat-display-header {
+    min-height:72px;
+    display:flex; align-items:center; justify-content:space-between;
+    background:linear-gradient(180deg,rgba(24,22,19,.94),rgba(12,12,11,.82));
+    border-bottom:1px solid rgba(210,166,76,.42);
+    box-shadow:0 8px 30px rgba(0,0,0,.48), 0 1px rgba(255,255,255,.04) inset;
+    backdrop-filter:blur(8px);
+}
+.combat-display-title {
+    font-size:25px !important;
+    color:#f1dfb2 !important;
+    text-shadow:0 2px 14px rgba(232,190,93,.22),0 2px 8px #000;
+}
+.combat-display-turn { opacity:.82; }
+.combat-display-active-banner {
+    min-height:22px;
+    margin-top:5px;
+    color:#f4cf78;
+    font-weight:800;
+    letter-spacing:.7px;
+    text-transform:uppercase;
+    opacity:0;
+    transform:translateY(-5px) scale(.98);
+    transition:opacity .28s ease, transform .28s ease;
+    text-shadow:0 0 12px rgba(229,177,70,.34);
+}
+.combat-display-active-banner.visible { opacity:1; transform:none; }
+.combat-display-track {
+    min-height:calc(100vh - 100px);
+    align-items:center !important;
+    padding:42px 30px 58px !important;
+    perspective:1100px;
+}
+.combat-display-track::before {
+    content:"";
+    position:absolute; left:7%; right:7%; top:50%; height:1px;
+    background:linear-gradient(90deg,transparent,rgba(203,159,69,.20),transparent);
+    box-shadow:0 0 22px rgba(207,164,72,.10);
+    pointer-events:none;
+}
+.combat-display-card {
+    position:relative;
+    overflow:hidden;
+    width:195px !important;
+    min-height:270px !important;
+    border-radius:16px !important;
+    transform:translateY(0) rotateX(0deg);
+    transition:transform .35s ease, filter .35s ease, opacity .35s ease, box-shadow .35s ease;
+    animation: combat-card-in .65s cubic-bezier(.2,.75,.25,1) both;
+}
+.combat-display-card::before {
+    content:"";
+    position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(120deg,transparent 25%,rgba(255,255,255,.10) 50%,transparent 75%);
+    transform:translateX(-120%);
+    animation:combat-card-sheen 5.5s ease-in-out infinite;
+}
+.combat-display-card:not(.active) { filter:saturate(.84) brightness(.84); }
+.combat-display-card.active {
+    transform:translateY(-16px) scale(1.075);
+    z-index:5;
+    border-color:#e0b75d !important;
+    box-shadow:
+        0 0 0 1px rgba(230,187,88,.55),
+        0 18px 45px rgba(0,0,0,.58),
+        0 0 32px rgba(222,169,65,.25),
+        inset 0 0 25px rgba(255,215,126,.06);
+    filter:saturate(1.08) brightness(1.08);
+}
+.combat-display-card.active::after {
+    content:"⚔";
+    position:absolute; top:8px; right:11px;
+    color:#f2cd77; font-size:22px;
+    text-shadow:0 0 12px rgba(235,184,77,.75);
+    animation:combat-sword-pulse 1.5s ease-in-out infinite;
+}
+.combat-display-card.dead { filter:grayscale(.75) brightness(.52); opacity:.78; }
+.combat-display-portrait {
+    height:160px !important;
+    border-radius:11px !important;
+    box-shadow:0 7px 18px rgba(0,0,0,.34);
+}
+.combat-display-card.active .combat-display-portrait {
+    box-shadow:0 0 22px rgba(223,174,72,.22);
+}
+.combat-display-name { font-size:18px !important; }
+.combat-display-hp-segment { transition:background .35s ease, opacity .35s ease, transform .35s ease; }
+.combat-display-card.active .combat-display-hp-segment { box-shadow:0 0 7px rgba(90,210,125,.12); }
+.combat-display-hidden {
+    opacity:.38;
+    transform:scale(.94);
+    background:radial-gradient(circle,rgba(210,170,84,.08),transparent 60%) !important;
+    border-style:dashed !important;
+}
+.combat-display-hidden::after {
+    content:"✦"; display:block; font-size:28px; margin-top:92px;
+    color:rgba(214,177,98,.28); animation:combat-hidden-pulse 3s ease-in-out infinite;
+}
+.combat-display-track.turn-change .combat-display-card { animation:combat-turn-arrival .72s cubic-bezier(.2,.8,.25,1) both; }
+.combat-display-track.turn-change .combat-display-card.active { animation:combat-active-arrival .85s cubic-bezier(.15,.8,.2,1) both; }
+.combat-display-ambient {
+    position:fixed; border-radius:50%; pointer-events:none; z-index:1; opacity:.35;
+    filter:blur(2px); mix-blend-mode:screen;
+}
+.ambient-one { width:260px; height:260px; left:-120px; bottom:-100px; background:radial-gradient(circle,rgba(64,151,105,.12),transparent 68%); animation:ambient-drift-one 12s ease-in-out infinite alternate; }
+.ambient-two { width:300px; height:300px; right:-150px; bottom:-130px; background:radial-gradient(circle,rgba(177,62,62,.12),transparent 68%); animation:ambient-drift-two 15s ease-in-out infinite alternate; }
+@keyframes combat-ambient-pulse { from{transform:scale(1) rotate(0deg);opacity:.72} to{transform:scale(1.06) rotate(1deg);opacity:1} }
+@keyframes combat-card-in { from{opacity:0;transform:translateY(28px) scale(.94)} to{opacity:1;transform:translateY(0) scale(1)} }
+@keyframes combat-card-sheen { 0%,72%{transform:translateX(-120%)} 88%,100%{transform:translateX(120%)} }
+@keyframes combat-sword-pulse { 0%,100%{transform:scale(1) rotate(-3deg);opacity:.75} 50%{transform:scale(1.16) rotate(3deg);opacity:1} }
+@keyframes combat-hidden-pulse { 0%,100%{opacity:.18;transform:scale(.9)} 50%{opacity:.42;transform:scale(1.08)} }
+@keyframes combat-turn-arrival { from{opacity:.25;transform:translateY(14px) scale(.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+@keyframes combat-active-arrival { 0%{opacity:.35;transform:translateY(30px) scale(.93)} 60%{opacity:1;transform:translateY(-20px) scale(1.09)} 100%{opacity:1;transform:translateY(-16px) scale(1.075)} }
+@keyframes ambient-drift-one { from{transform:translate(0,0)} to{transform:translate(55px,-28px)} }
+@keyframes ambient-drift-two { from{transform:translate(0,0)} to{transform:translate(-45px,-35px)} }
+@media (prefers-reduced-motion: reduce) {
+    .combat-display-body::before,.combat-display-card,.combat-display-card::before,.combat-display-card.active::after,.combat-display-hidden::after,.combat-display-ambient { animation:none !important; }
+    .combat-display-active-banner { transition:none; }
+}
 </style>
 </head>
 
@@ -1876,7 +2024,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.1
+        BETA 1.2
     </div>
 
 </header>
@@ -2466,7 +2614,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.1";
+const APP_VERSION = "BETA 1.2";
 
 
 /* =====================================================
@@ -5667,11 +5815,14 @@ function writeCombatDisplayDocument() {
                 <div>
                     <div id="displayTitle" class="combat-display-title">⚔️ Combat</div>
                     <div id="displayTurn" class="combat-display-turn">Préparation</div>
+                    <div id="displayActive" class="combat-display-active-banner" aria-live="polite"></div>
                 </div>
                 <div class="combat-display-controls">
                     <button onclick="window.close()">✕ Fermer</button>
                 </div>
             </header>
+            <div class="combat-display-ambient ambient-one"></div>
+            <div class="combat-display-ambient ambient-two"></div>
             <main id="displayTrack" class="combat-display-track"></main>
         </body>
         </html>
@@ -6149,6 +6300,11 @@ function renderCombatDisplay() {
     // affichera les images sans changer l'ordre des tours.
     ensureCombatImagesLoaded(combat);
 
+    const currentIndex = Number(combat.currentIndex) || 0;
+    const currentFighter = combat.fighters[currentIndex];
+    const previousIndex = combatDisplayWindow.__dndLastDisplayIndex;
+    const turnChanged = combat.displayStarted && previousIndex !== undefined && previousIndex !== currentIndex;
+
     if (!combat.displayStarted) {
         turn.textContent = "Prêt à commencer";
     } else {
@@ -6156,6 +6312,24 @@ function renderCombatDisplay() {
             `Tour ${combat.currentTurn || 1} • ` +
             `${getDisplayVisibleCount(combat)} combattant(s) révélé(s)`;
     }
+
+    const active = combatDisplayWindow.document.getElementById("displayActive");
+    if (active) {
+        active.textContent = combat.displayStarted && currentFighter
+            ? `⚔️ À VOUS DE JOUER — ${currentFighter.name || "Sans nom"}`
+            : "";
+        active.classList.toggle("visible", !!(combat.displayStarted && currentFighter));
+    }
+
+    if (turnChanged) {
+        track.classList.remove("turn-change");
+        void track.offsetWidth;
+        track.classList.add("turn-change");
+        setTimeout(() => {
+            if (track) track.classList.remove("turn-change");
+        }, 900);
+    }
+    combatDisplayWindow.__dndLastDisplayIndex = currentIndex;
 
     if (!combat.fighters.length) {
         track.innerHTML = `<div class="combat-display-empty">Aucun combattant</div>`;
