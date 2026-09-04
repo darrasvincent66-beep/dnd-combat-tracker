@@ -1102,7 +1102,7 @@ input:focus {
 }
 
 
-/* V0.21 */
+/* V0.22 */
 .frise-statuses {
     display: flex;
     flex-wrap: wrap;
@@ -1128,6 +1128,40 @@ input:focus {
     transform: scale(1.05);
 }
 
+
+/* V0.22 - sauvegardes contre la mort dans la cellule Vie du MJ */
+.death-saves-inline {
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 7px;
+    padding: 5px 6px;
+    text-align: left;
+}
+.death-saves-inline .death-saves-row {
+    display: grid;
+    grid-template-columns: minmax(70px, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    margin-top: 3px;
+}
+.death-saves-inline .death-saves-label {
+    text-align: left;
+    white-space: nowrap;
+}
+.death-saves-inline .death-saves-boxes {
+    display: flex;
+    justify-content: flex-end;
+    gap: 5px;
+}
+.death-saves-inline .death-save-box {
+    flex: 0 0 27px;
+    width: 27px !important;
+    height: 27px !important;
+    padding: 0 !important;
+    cursor: pointer !important;
+}
+.combat-row:has(.death-saves-inline) td { vertical-align: top; }
+
 </style>
 </head>
 
@@ -1143,7 +1177,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.21
+        V0.22
     </div>
 
 </header>
@@ -1628,7 +1662,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.21";
+const APP_VERSION = "V0.22";
 
 
 /* =====================================================
@@ -4093,6 +4127,7 @@ function renderCombatRow(fighter, index, combat = getActiveCombat()) {
                         onchange="updateFighter(${index}, 'hp', this.value)">
                     <button class="combat-mini-btn" onclick="changeFighterValue(${index}, 'hp', 1)">+</button>
                 </div>
+                ${renderDeathSaves(fighter)}
             </td>
 
             <td>
@@ -4668,47 +4703,43 @@ function renderDeathSaves(fighter) {
     if (!fighter || Number(fighter.hp) > 0 || fighter.type !== "player") return "";
 
     const saves = getDeathSaveState(fighter);
+    const safeId = String(fighter.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
     if (fighter.deathSavesResult === "dead") {
-        return `<div class="death-saves" data-death-save-control="${String(fighter.id)}">
+        return `<div class="death-saves death-saves-inline" data-death-save-control="${String(fighter.id)}">
             <div class="death-saves-result dead">💀 MORT</div>
         </div>`;
     }
 
     if (fighter.deathSavesResult === "stable") {
-        return `<div class="death-saves" data-death-save-control="${String(fighter.id)}">
+        return `<div class="death-saves death-saves-inline" data-death-save-control="${String(fighter.id)}">
             <div class="death-saves-result stable">🟢 STABILISÉ</div>
         </div>`;
     }
 
     const successBoxes = [0,1,2].map(i => `
-        <button type="button"
-            class="death-save-box success ${i < saves.successes ? "checked" : ""}"
-            data-death-save-control="${String(fighter.id)}"
-            onclick="setDeathSave('${String(fighter.id).replace(/'/g, "\\'")}', 'success', ${i}, ${i >= saves.successes})"
-            title="${i < saves.successes ? "Retirer cette réussite" : "Ajouter une réussite"}">
-        </button>`).join("");
+        <button type="button" class="death-save-box success ${i < saves.successes ? "checked" : ""}"
+            onclick="setDeathSave('${safeId}', 'success', ${i}, ${i >= saves.successes})"
+            title="${i < saves.successes ? "Retirer cette réussite" : "Ajouter une réussite"}"></button>`).join("");
 
     const failureBoxes = [0,1,2].map(i => `
-        <button type="button"
-            class="death-save-box failure ${i < saves.failures ? "checked" : ""}"
-            data-death-save-control="${String(fighter.id).replace(/'/g, "\\'")}"
-            onclick="setDeathSave('${String(fighter.id).replace(/'/g, "\\'")}', 'failure', ${i}, ${i >= saves.failures})"
-            title="${i < saves.failures ? "Retirer cet échec" : "Ajouter un échec"}">
-        </button>`).join("");
+        <button type="button" class="death-save-box failure ${i < saves.failures ? "checked" : ""}"
+            onclick="setDeathSave('${safeId}', 'failure', ${i}, ${i >= saves.failures})"
+            title="${i < saves.failures ? "Retirer cet échec" : "Ajouter un échec"}"></button>`).join("");
 
     return `
-        <div class="death-saves" data-death-save-control="${String(fighter.id)}">
+        <div class="death-saves death-saves-inline" data-death-save-control="${String(fighter.id)}">
             <div class="death-saves-row">
-                <span>Réussites</span>${successBoxes}
+                <span class="death-saves-label">Réussites</span>
+                <span class="death-saves-boxes">${successBoxes}</span>
             </div>
             <div class="death-saves-row">
-                <span>Échecs</span>${failureBoxes}
+                <span class="death-saves-label">Échecs</span>
+                <span class="death-saves-boxes">${failureBoxes}</span>
             </div>
         </div>
     `;
 }
-
 
 function renderFriseStatuses(fighter) {
     const statuses = getFighterStatuses(fighter);
@@ -4839,10 +4870,10 @@ function renderCombatDisplayCard(fighter, index, combat) {
 
     const hpSegments = Array.from({length:4}, (_, i) => {
         const filled = i < segments;
-        const friseStatuses = renderFriseStatuses(fighter);
-    return `<span class="combat-display-hp-segment ${filled ? segmentClass : "empty"}"></span>
-            ${friseStatuses}`;
+        return `<span class="combat-display-hp-segment ${filled ? segmentClass : "empty"}"></span>`;
     }).join("");
+
+    const friseStatuses = renderFriseStatuses(fighter);
 
     const isDead = fighter.type === "monster" && hp <= 0 ||
         fighter.type === "player" && fighter.deathSavesResult === "dead";
@@ -4875,6 +4906,7 @@ function renderCombatDisplayCard(fighter, index, combat) {
             </div>
             <div class="combat-display-name">${escapeHtml(fighter.name || "Sans nom")}</div>
             <div class="combat-display-hp">${hpSegments}</div>
+            ${friseStatuses}
             ${renderDeathSavesFrise(fighter)}
             <div class="combat-display-effect">${escapeHtml(effectLabel)}</div>
         </article>
