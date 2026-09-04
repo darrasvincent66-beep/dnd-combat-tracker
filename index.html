@@ -1101,6 +1101,33 @@ input:focus {
     border-radius: 5px;
 }
 
+
+/* V0.21 */
+.frise-statuses {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 3px 5px;
+    width: 100%;
+    margin-top: 4px;
+}
+.frise-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 5px;
+    border-radius: 5px;
+    background: rgba(255,255,255,.10);
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: normal;
+}
+.death-save-box {
+    cursor: pointer !important;
+}
+.death-save-box:hover {
+    transform: scale(1.05);
+}
+
 </style>
 </head>
 
@@ -1116,7 +1143,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.20
+        V0.21
     </div>
 
 </header>
@@ -1601,7 +1628,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.20";
+const APP_VERSION = "V0.21";
 
 
 /* =====================================================
@@ -4638,37 +4665,40 @@ function setDeathSave(fighterId, type, index, value) {
 }
 
 function renderDeathSaves(fighter) {
-    resetDeathSavesIfRecovered(fighter);
     if (!fighter || Number(fighter.hp) > 0 || fighter.type !== "player") return "";
 
     const saves = getDeathSaveState(fighter);
 
     if (fighter.deathSavesResult === "dead") {
-        return `<div class="death-saves">
+        return `<div class="death-saves" data-death-save-control="${String(fighter.id)}">
             <div class="death-saves-result dead">💀 MORT</div>
         </div>`;
     }
 
     if (fighter.deathSavesResult === "stable") {
-        return `<div class="death-saves">
+        return `<div class="death-saves" data-death-save-control="${String(fighter.id)}">
             <div class="death-saves-result stable">🟢 STABILISÉ</div>
         </div>`;
     }
 
-    const successBoxes = [0, 1, 2].map(i =>
-        `<button class="death-save-box success ${i < saves.successes ? "checked" : ""}"
+    const successBoxes = [0,1,2].map(i => `
+        <button type="button"
+            class="death-save-box success ${i < saves.successes ? "checked" : ""}"
+            data-death-save-control="${String(fighter.id)}"
             onclick="setDeathSave('${String(fighter.id).replace(/'/g, "\\'")}', 'success', ${i}, ${i >= saves.successes})"
-            title="Réussite ${i + 1}"></button>`
-    ).join("");
+            title="${i < saves.successes ? "Retirer cette réussite" : "Ajouter une réussite"}">
+        </button>`).join("");
 
-    const failureBoxes = [0, 1, 2].map(i =>
-        `<button class="death-save-box failure ${i < saves.failures ? "checked" : ""}"
+    const failureBoxes = [0,1,2].map(i => `
+        <button type="button"
+            class="death-save-box failure ${i < saves.failures ? "checked" : ""}"
+            data-death-save-control="${String(fighter.id).replace(/'/g, "\\'")}"
             onclick="setDeathSave('${String(fighter.id).replace(/'/g, "\\'")}', 'failure', ${i}, ${i >= saves.failures})"
-            title="Échec ${i + 1}"></button>`
-    ).join("");
+            title="${i < saves.failures ? "Retirer cet échec" : "Ajouter un échec"}">
+        </button>`).join("");
 
     return `
-        <div class="death-saves">
+        <div class="death-saves" data-death-save-control="${String(fighter.id)}">
             <div class="death-saves-row">
                 <span>Réussites</span>${successBoxes}
             </div>
@@ -4677,6 +4707,18 @@ function renderDeathSaves(fighter) {
             </div>
         </div>
     `;
+}
+
+
+function renderFriseStatuses(fighter) {
+    const statuses = getFighterStatuses(fighter);
+    if (!statuses.length) return "";
+
+    return `<div class="frise-statuses">${
+        statuses.map(status =>
+            `<span class="frise-status-badge">${getStatusLabel(status)}</span>`
+        ).join("")
+    }</div>`;
 }
 
 function renderDeathSavesFrise(fighter) {
@@ -4797,7 +4839,9 @@ function renderCombatDisplayCard(fighter, index, combat) {
 
     const hpSegments = Array.from({length:4}, (_, i) => {
         const filled = i < segments;
-        return `<span class="combat-display-hp-segment ${filled ? segmentClass : "empty"}"></span>`;
+        const friseStatuses = renderFriseStatuses(fighter);
+    return `<span class="combat-display-hp-segment ${filled ? segmentClass : "empty"}"></span>
+            ${friseStatuses}`;
     }).join("");
 
     const isDead = fighter.type === "monster" && hp <= 0 ||
