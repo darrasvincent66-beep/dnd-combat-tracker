@@ -1024,44 +1024,6 @@ input:focus {
 .death-save-box.success.checked { background: rgba(60,180,90,.35); }
 .death-save-box.failure.checked { background: rgba(210,70,70,.35); }
 
-
-.death-frise {
-    margin-top: 6px;
-    padding: 5px 7px;
-    border-radius: 6px;
-    background: rgba(0,0,0,.12);
-    font-size: 11px;
-    line-height: 1.8;
-}
-.death-frise-label {
-    display: inline-block;
-    width: 62px;
-    font-size: 10px;
-    opacity: .85;
-}
-.death-frise-box {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    margin-right: 3px;
-    border: 1px solid rgba(255,255,255,.25);
-    border-radius: 4px;
-    opacity: .35;
-}
-.death-frise-box.checked { opacity: 1; }
-.death-frise-box.success.checked { background: rgba(60,180,90,.4); }
-.death-frise-box.failure.checked { background: rgba(210,70,70,.4); }
-.death-frise-result {
-    margin-top: 6px;
-    padding: 4px 7px;
-    border-radius: 5px;
-    font-weight: 700;
-}
-.death-frise-result.stable { background: rgba(60,180,90,.25); }
-.death-frise-result.dead { background: rgba(0,0,0,.3); }
-
 </style>
 </head>
 
@@ -3970,10 +3932,6 @@ function renderCombatRow(fighter, index, combat = getActiveCombat()) {
         fighter.type === "player" ? "Joueur" :
         fighter.type === "monster" ? "Monstre" : "Manuel";
 
-    const effectOptions = COMBAT_EFFECTS.map(([value, label]) =>
-        `<option value="${escapeHtml(value)}" ${fighter.effect === value ? "selected" : ""}>${escapeHtml(label)}</option>`
-    ).join("");
-
     const initiative = fighter.initiative ?? "";
     const hp = fighter.hp ?? "";
     const ac = fighter.ac ?? "";
@@ -4047,10 +4005,7 @@ function renderCombatRow(fighter, index, combat = getActiveCombat()) {
             </td>
 
             <td>
-                <select class="combat-effect-select"
-                        onchange="updateFighter(${index}, 'effect', this.value)">
-                    ${effectOptions}
-                </select>
+                ${renderStatusMultiSelect(fighter)}
             </td>
 
             <td>
@@ -4126,8 +4081,13 @@ function updateFighter(index, field, value) {
     } else if (field === "initiative" ||
                field === "hp" ||
                field === "ac") {
+        const oldHp = Number(combat.fighters[index].hp) || 0;
         combat.fighters[index][field] =
             value === "" ? "" : Math.max(0, Number(value) || 0);
+        if (field === "hp" && Number(combat.fighters[index].hp) > 0 && oldHp <= 0) {
+            combat.fighters[index].deathSaves = { successes: 0, failures: 0 };
+            combat.fighters[index].deathSavesResult = "";
+        }
     } else {
         combat.fighters[index][field] = value;
     }
@@ -4140,7 +4100,12 @@ function changeFighterValue(index, field, amount) {
     if (!combat || !combat.fighters[index]) return;
 
     const current = Number(combat.fighters[index][field]) || 0;
-    combat.fighters[index][field] = Math.max(0, current + amount);
+    const next = Math.max(0, current + amount);
+    combat.fighters[index][field] = next;
+    if (field === "hp" && next > 0 && current <= 0) {
+        combat.fighters[index].deathSaves = { successes: 0, failures: 0 };
+        combat.fighters[index].deathSavesResult = "";
+    }
     saveCombats();
     renderCombats();
 }
@@ -4482,56 +4447,62 @@ async function ensureCombatImagesLoaded(combat) {
 
 function getFighterStatuses(fighter) {
     if (!fighter) return [];
-    if (Array.isArray(fighter.statuses)) return fighter.statuses;
-    if (fighter.status) return [fighter.status];
-    return [];
+    if (Array.isArray(fighter.statuses)) return fighter.statuses.filter(Boolean);
+    if (Array.isArray(fighter.effects)) return fighter.effects.filter(Boolean);
+    return fighter.effect ? [fighter.effect] : [];
 }
 
 function setFighterStatuses(fighter, statuses) {
     if (!fighter) return;
     fighter.statuses = [...new Set((statuses || []).filter(Boolean))];
-    // Keep legacy field synchronized for compatibility with existing saves.
-    fighter.status = fighter.statuses[0] || "";
+    fighter.effects = [...fighter.statuses];
+    fighter.effect = fighter.statuses[0] || "";
 }
 
 function toggleFighterStatus(fighterId, status) {
-    const combat = combats.find(c => c.id === activeCombatId);
+    const combat = getActiveCombat();
     if (!combat) return;
-
     const fighter = combat.fighters.find(f => String(f.id) === String(fighterId));
     if (!fighter) return;
-
     const current = getFighterStatuses(fighter);
     if (current.includes(status)) {
         setFighterStatuses(fighter, current.filter(s => s !== status));
     } else {
         setFighterStatuses(fighter, [...current, status]);
     }
-
     saveCombats();
-    renderCombat();
+    renderCombats();
+    renderCombatDisplay();
 }
 
 function getStatusLabel(status) {
-    const labels = {
-        blinded: "Aveuglé",
-        charmed: "Charmé",
-        deafened: "Assourdi",
-        frightened: "Effrayé",
-        grappled: "Agrippé",
-        incapacitated: "Incapable d'agir",
-        invisible: "Invisible",
-        paralyzed: "Paralysé",
-        petrified: "Pétrifié",
-        poisoned: "Empoisonné",
-        prone: "À terre",
-        restrained: "Entravé",
-        stunned: "Étourdi",
-        unconscious: "Inconscient"
-    };
-    return labels[status] || status;
+    const found = COMBAT_EFFECTS.find(e => e[0] === status);
+    return found ? found[1] : status;
 }
 
+function renderStatusMultiSelect(fighter) {
+    const selected = getFighterStatuses(fighter);
+    const rows = COMBAT_EFFECTS.filter(([value]) => value).map(([value, label]) => {
+        const active = selected.includes(value);
+        const safeId = String(fighter.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        return `<div class="status-menu-row ${active ? "active" : ""}">
+            <span class="status-menu-label">${escapeHtml(label)}</span>
+            <button type="button" class="status-add ${active ? "selected" : ""}"
+                    onclick="toggleFighterStatus('${safeId}','${escapeHtml(value)}')"
+                    title="Appliquer cet état">✓</button>
+            <button type="button" class="status-remove ${!active ? "disabled" : ""}"
+                    onclick="toggleFighterStatus('${safeId}','${escapeHtml(value)}')"
+                    title="Retirer cet état">✕</button>
+        </div>`;
+    }).join("");
+    const currentLabel = selected.length
+        ? selected.map(getStatusLabel).join(", ")
+        : "— Aucun état —";
+    return `<details class="status-multi">
+        <summary>${escapeHtml(currentLabel)}</summary>
+        <div class="status-menu">${rows}</div>
+    </details>`;
+}
 
 function getDeathSaveState(fighter) {
     if (!fighter) return { successes: 0, failures: 0 };
@@ -4558,53 +4529,8 @@ function setDeathSave(fighterId, type, index, value) {
 
     saves[key] = Math.max(0, Math.min(3, count));
 
-    applyDeathSaveOutcome(fighter);
-
-    saveCombats();
-    renderCombat();
-    if (typeof renderCombatDisplay === "function") {
-        renderCombatDisplay();
-    }
-}
-
-
-function renderDeathSavesFrise(fighter) {
-    if (!fighter || fighter.type !== "player" || Number(fighter.hp) > 0) return "";
-
-    const saves = getDeathSaveState(fighter);
-
-    if (fighter.deathSavesResult === "dead") {
-        return `<div class="death-frise-result dead">💀 MORT</div>`;
-    }
-
-    if (fighter.deathSavesResult === "stable") {
-        return `<div class="death-frise-result stable">🟢 STABILISÉ</div>`;
-    }
-
-    const successBoxes = [0,1,2].map(i =>
-        `<span class="death-frise-box success ${i < saves.successes ? "checked" : ""}">✓</span>`
-    ).join("");
-
-    const failureBoxes = [0,1,2].map(i =>
-        `<span class="death-frise-box failure ${i < saves.failures ? "checked" : ""}">✕</span>`
-    ).join("");
-
-    return `
-        <div class="death-frise">
-            <div><span class="death-frise-label">Réussites</span>${successBoxes}</div>
-            <div><span class="death-frise-label">Échecs</span>${failureBoxes}</div>
-        </div>
-    `;
-}
-
-function applyDeathSaveOutcome(fighter) {
-    if (!fighter || fighter.type !== "player") return;
-
-    const saves = getDeathSaveState(fighter);
-
     if (saves.successes >= 3) {
         fighter.deathSavesResult = "stable";
-        // RAW 5e: stable remains at 0 HP and unconscious.
         fighter.hp = 0;
     } else if (saves.failures >= 3) {
         fighter.deathSavesResult = "dead";
@@ -4612,6 +4538,10 @@ function applyDeathSaveOutcome(fighter) {
     } else {
         fighter.deathSavesResult = "";
     }
+
+    saveCombats();
+    renderCombats();
+    renderCombatDisplay();
 }
 
 function renderDeathSaves(fighter) {
@@ -4645,6 +4575,16 @@ function renderDeathSaves(fighter) {
             </div>
         </div>
     `;
+}
+
+function renderDeathSavesFrise(fighter) {
+    if (!fighter || fighter.type !== "player" || Number(fighter.hp) > 0) return "";
+    if (fighter.deathSavesResult === "dead") return `<div class="death-frise-result dead">💀 MORT</div>`;
+    if (fighter.deathSavesResult === "stable") return `<div class="death-frise-result stable">🟢 STABILISÉ</div>`;
+    const saves = getDeathSaveState(fighter);
+    const ok = [0,1,2].map(i => `<span class="death-frise-box success ${i < saves.successes ? "checked" : ""}">✓</span>`).join("");
+    const fail = [0,1,2].map(i => `<span class="death-frise-box failure ${i < saves.failures ? "checked" : ""}">✕</span>`).join("");
+    return `<div class="death-frise"><div><span class="death-frise-label">Réussites</span>${ok}</div><div><span class="death-frise-label">Échecs</span>${fail}</div></div>`;
 }
 
 function renderCombatDisplay() {
@@ -4739,8 +4679,9 @@ function renderCombatDisplayCard(fighter, index, combat) {
         return `<span class="combat-display-hp-segment ${filled ? segmentClass : "empty"}"></span>`;
     }).join("");
 
-    const isDead = fighter.type === "monster" && hp <= 0;
-    const isUnconscious = fighter.type === "player" && hp <= 0;
+    const isDead = fighter.type === "monster" && hp <= 0 ||
+        fighter.type === "player" && fighter.deathSavesResult === "dead";
+    const isUnconscious = fighter.type === "player" && hp <= 0 && fighter.deathSavesResult !== "dead";
     const active = combat.displayStarted &&
         index === (Number(combat.currentIndex) || 0);
 
@@ -4769,6 +4710,7 @@ function renderCombatDisplayCard(fighter, index, combat) {
             </div>
             <div class="combat-display-name">${escapeHtml(fighter.name || "Sans nom")}</div>
             <div class="combat-display-hp">${hpSegments}</div>
+            ${renderDeathSavesFrise(fighter)}
             <div class="combat-display-effect">${escapeHtml(effectLabel)}</div>
         </article>
     `;
