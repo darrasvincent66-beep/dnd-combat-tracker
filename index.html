@@ -1102,7 +1102,7 @@ input:focus {
 }
 
 
-/* V0.22 */
+/* V0.23 */
 .frise-statuses {
     display: flex;
     flex-wrap: wrap;
@@ -1129,7 +1129,7 @@ input:focus {
 }
 
 
-/* V0.22 - sauvegardes contre la mort dans la cellule Vie du MJ */
+/* V0.23 - sauvegardes contre la mort dans la cellule Vie du MJ */
 .death-saves-inline {
     width: 100%;
     box-sizing: border-box;
@@ -1162,6 +1162,45 @@ input:focus {
 }
 .combat-row:has(.death-saves-inline) td { vertical-align: top; }
 
+
+/* V0.23 - mise en page propre des sauvegardes contre la mort sur la frise */
+.death-frise {
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 7px;
+    padding: 5px 2px;
+    text-align: left;
+}
+.death-frise > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 22px;
+    margin-top: 3px;
+}
+.death-frise-label {
+    width: auto;
+    text-align: left;
+    white-space: nowrap;
+    font-size: 13px;
+}
+.death-frise-boxes {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+}
+.death-frise > div > .death-frise-label + .death-frise-box {
+    margin-left: 0;
+}
+.death-frise-box {
+    display: inline-block;
+    flex: 0 0 22px;
+    width: 22px !important;
+    height: 22px !important;
+    box-sizing: border-box;
+}
+
 </style>
 </head>
 
@@ -1177,7 +1216,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.22
+        V0.23
     </div>
 
 </header>
@@ -1662,7 +1701,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.22";
+const APP_VERSION = "V0.23";
 
 
 /* =====================================================
@@ -4742,12 +4781,14 @@ function renderDeathSaves(fighter) {
 }
 
 function renderFriseStatuses(fighter) {
-    const statuses = getFighterStatuses(fighter);
+    // Une seule source : fighter.statuses. On déduplique également les anciennes
+    // données legacy (effects/effect) pour ne jamais afficher un état deux fois.
+    const statuses = [...new Set(getFighterStatuses(fighter).filter(Boolean))];
     if (!statuses.length) return "";
 
     return `<div class="frise-statuses">${
         statuses.map(status =>
-            `<span class="frise-status-badge">${getStatusLabel(status)}</span>`
+            `<span class="frise-status-badge">${escapeHtml(getStatusLabel(status))}</span>`
         ).join("")
     }</div>`;
 }
@@ -4775,8 +4816,8 @@ function renderDeathSavesFrise(fighter) {
 
     return `
         <div class="death-frise">
-            <div><span class="death-frise-label">Réussites</span>${successBoxes}</div>
-            <div><span class="death-frise-label">Échecs</span>${failureBoxes}</div>
+            <div><span class="death-frise-label">Réussites</span><span class="death-frise-boxes">${successBoxes}</span></div>
+            <div><span class="death-frise-label">Échecs</span><span class="death-frise-boxes">${failureBoxes}</span></div>
         </div>
     `;
 }
@@ -4891,9 +4932,6 @@ function renderCombatDisplayCard(fighter, index, combat) {
         portrait = `<img class="combat-fighter-portrait" src="${escapeHtml(source)}" alt="">`;
     }
 
-    const effect = COMBAT_EFFECTS.find(e => e[0] === fighter.effect);
-    const effectLabel = effect && effect[0] ? effect[1] : "";
-
     return `
         <article class="combat-display-card
             ${fighter.type === "player" ? "player-card" : "monster-card"}
@@ -4908,7 +4946,6 @@ function renderCombatDisplayCard(fighter, index, combat) {
             <div class="combat-display-hp">${hpSegments}</div>
             ${friseStatuses}
             ${renderDeathSavesFrise(fighter)}
-            <div class="combat-display-effect">${escapeHtml(effectLabel)}</div>
         </article>
     `;
 }
