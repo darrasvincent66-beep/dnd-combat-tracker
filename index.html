@@ -543,7 +543,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.8
+        V0.9
     </div>
 
 </header>
@@ -1022,7 +1022,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.8";
+const APP_VERSION = "V0.9";
 
 const PLAYER_STORAGE_KEY = "dnd_players";
 
@@ -2898,17 +2898,26 @@ function editMonsterGroupInstances(groupId) {
     const instances = expandMonsterGroup(group);
 
     const rows = instances.map((monster, index) => `
-        <div class="group-member-row" style="display:grid;grid-template-columns:minmax(140px,1fr) 90px 110px 90px;gap:8px;">
+        <div class="group-member-row" style="display:grid;grid-template-columns:minmax(140px,1fr) 120px 110px 120px;gap:8px;">
             <div class="group-member-info">
                 <strong>${escapeHtml(monster.name)}</strong>
             </div>
-            <input
-                type="number"
-                min="0"
-                value="${monster.hp}"
-                data-instance-index="${index}"
-                class="instance-hp"
-                title="PV">
+            <div style="display:flex;gap:4px;align-items:center;">
+                <input
+                    type="number"
+                    min="0"
+                    value="${monster.hp}"
+                    data-instance-index="${index}"
+                    class="instance-hp"
+                    title="PV"
+                    style="width:72px;min-width:72px;box-sizing:border-box;">
+                <button
+                    type="button"
+                    class="secondary-button"
+                    onclick="rerollInstanceHP(${index})"
+                    style="padding:7px 9px;"
+                    title="Lancer la formule de PV">🎲</button>
+            </div>
             <input
                 type="text"
                 value="${escapeHtml(monster.hpFormula)}"
@@ -2924,7 +2933,7 @@ function editMonsterGroupInstances(groupId) {
                     data-instance-index="${index}"
                     class="instance-initiative"
                     title="Initiative"
-                    style="width:100%;">
+                    style="width:72px;min-width:72px;box-sizing:border-box;">
                 <button
                     type="button"
                     class="secondary-button"
@@ -2942,7 +2951,7 @@ function editMonsterGroupInstances(groupId) {
         <p style="color:#aaa;margin-top:0;">
             Chaque exemplaire possède maintenant ses propres PV, formule et initiative.
         </p>
-        <div style="display:grid;grid-template-columns:minmax(140px,1fr) 90px 110px 120px;gap:8px;margin-bottom:8px;color:#aaa;font-size:12px;">
+        <div style="display:grid;grid-template-columns:minmax(140px,1fr) 120px 110px 135px;gap:8px;margin-bottom:8px;color:#aaa;font-size:12px;">
             <span>MONSTRE</span><span>PV</span><span>FORMULE</span><span>INITIATIVE</span>
         </div>
         ${rows || '<div class="empty-state"><p>Aucun monstre dans ce groupe.</p></div>'}
@@ -2956,6 +2965,60 @@ function editMonsterGroupInstances(groupId) {
     // Le bouton Enregistrer devient "💾 Enregistrer les monstres".
     document.querySelector("#groupForm .primary-button").textContent =
         "💾 Enregistrer les monstres";
+}
+
+function rollFormula(formula) {
+    if (!formula) return null;
+
+    const normalized = String(formula)
+        .toLowerCase()
+        .replace(/\s+/g, "");
+
+    const match = normalized.match(/^(\d+)d(\d+)([+-]\d+)?$/);
+    if (!match) return null;
+
+    const diceCount = Number(match[1]);
+    const diceSides = Number(match[2]);
+    const modifier = Number(match[3] || 0);
+
+    if (
+        !Number.isInteger(diceCount) ||
+        !Number.isInteger(diceSides) ||
+        diceCount < 1 ||
+        diceSides < 1 ||
+        diceCount > 100
+    ) {
+        return null;
+    }
+
+    let total = modifier;
+
+    for (let i = 0; i < diceCount; i++) {
+        total += Math.floor(Math.random() * diceSides) + 1;
+    }
+
+    return Math.max(0, total);
+}
+
+function rerollInstanceHP(index) {
+    const formulaInput = document.querySelector(
+        `.instance-formula[data-instance-index="${index}"]`
+    );
+    const hpInput = document.querySelector(
+        `.instance-hp[data-instance-index="${index}"]`
+    );
+
+    if (!formulaInput || !hpInput) return;
+
+    const result = rollFormula(formulaInput.value);
+
+    if (result === null) {
+        alert("Formule de PV invalide. Exemple attendu : 2d8+2");
+        formulaInput.focus();
+        return;
+    }
+
+    hpInput.value = result;
 }
 
 function rerollInstanceInitiative(index) {
