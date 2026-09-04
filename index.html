@@ -941,12 +941,13 @@ input:focus {
     padding:10px 12px; border-radius:7px; cursor:pointer; font-size:18px;
 }
 .dice-button:hover { background:#666; }
+
 .combat-fighter-portrait {
-    width:100%;
-    height:100%;
-    object-fit:cover;
-    display:block;
-    border-radius:inherit;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: inherit;
 }
 
 </style>
@@ -980,7 +981,7 @@ input:focus {
 
     <button
         class="nav-button"
-        onclick="loadCombats();showPage('combat', this)">
+        onclick="showPage('combat', this)">
         ⚔️ Combats
     </button>
 
@@ -1947,6 +1948,18 @@ function showPage(pageId, button = null) {
 
         page.classList.add("active");
 
+    }
+
+    // Toujours recharger et afficher les combats en entrant dans l'onglet Combat.
+    // Cela évite d'avoir à cliquer sur « Nouveau combat » pour faire apparaître les onglets.
+    if (pageId === "combat" && typeof loadCombats === "function" && typeof renderCombats === "function") {
+        loadCombats();
+
+        if (!activeCombatId && combats.length) {
+            activeCombatId = combats[0].id;
+        }
+
+        renderCombats();
     }
 
 
@@ -4317,48 +4330,31 @@ function renderCombatResultOverlay(doc, combat) {
 }
 
 
-function getLibraryImageForFighter(fighter) {
-    if (!fighter) return "";
-    if (fighter.image) return fighter.image;
-    if (fighter.imageData) return fighter.imageData;
-    if (fighter.avatar) return fighter.avatar;
+const combatImageCache = new Map();
 
-    const sourceId =
-        fighter.sourceId ??
-        fighter.originalId ??
-        fighter.libraryId ??
-        fighter.templateId;
+async function ensureCombatImagesLoaded(combat) {
+    if (!combat || !Array.isArray(combat.fighters)) return;
 
-    if (fighter.type === "player") {
-        const source = players.find(
-            item => String(item.id) === String(sourceId)
-        );
-        return source?.image || source?.imageData || source?.avatar || "";
-    }
+    const jobs = combat.fighters.map(async fighter => {
+        if (!fighter.imageId || fighter.imageData) return;
 
-    if (fighter.type === "monster") {
-        const source = monsters.find(
-            item => String(item.id) === String(sourceId)
-        );
-        return source?.image || source?.imageData || source?.avatar || "";
-    }
+        if (combatImageCache.has(fighter.imageId)) {
+            fighter.imageData = combatImageCache.get(fighter.imageId);
+            return;
+        }
 
-    return "";
-}
+        try {
+            const image = await getImage(fighter.imageId);
+            if (image) {
+                combatImageCache.set(fighter.imageId, image);
+                fighter.imageData = image;
+            }
+        } catch (error) {
+            console.error("Impossible de charger le portrait du combattant :", error);
+        }
+    });
 
-function renderFighterPortrait(fighter, fallback) {
-    const image = getLibraryImageForFighter(fighter);
-    if (!image) return fallback;
-
-    const safeImage = String(image)
-        .replace(/&/g, "&amp;")
-        .replace(/"/g, "&quot;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-
-    return `<img class="combat-fighter-portrait" src="${safeImage}" alt=""
-        onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex';">
-        <span style="display:none">⚔️</span>`;
+    await Promise.all(jobs);
 }
 
 function renderCombatDisplay() {
@@ -4393,6 +4389,11 @@ function renderCombatDisplay() {
     if (!title || !turn || !track) return;
 
     title.textContent = `⚔️ ${combat.name}`;
+
+    // Les portraits sont dans IndexedDB : on les charge en parallèle.
+    // Le prochain rafraîchissement (déjà prévu par le timer du combat)
+    // affichera les images sans changer l'ordre des tours.
+    ensureCombatImagesLoaded(combat);
 
     if (!combat.displayStarted) {
         turn.textContent = "Prêt à commencer";
@@ -4454,11 +4455,13 @@ function renderCombatDisplayCard(fighter, index, combat) {
         index === (Number(combat.currentIndex) || 0);
 
     let portrait = fighter.type === "monster" ? "👹" : "🧙";
-    if (fighter.imageId) {
-        const source = getImageSource(fighter.imageId);
-        if (source) {
-            portrait = `<img src="${escapeHtml(source)}" alt="">`;
-        }
+
+    const source =
+        fighter.imageData ||
+        (fighter.imageId ? getImageSource(fighter.imageId) : "");
+
+    if (source) {
+        portrait = `<img class="combat-fighter-portrait" src="${escapeHtml(source)}" alt="">`;
     }
 
     const effect = COMBAT_EFFECTS.find(e => e[0] === fighter.effect);
