@@ -343,6 +343,197 @@ gap:10px;
 padding:15px;
 border-top:1px solid #3d3d3d;
 }
+
+.combat-tabs {
+display:flex;
+align-items:center;
+gap:8px;
+overflow-x:auto;
+padding:4px 0 14px;
+border-bottom:1px solid #3d3d3d;
+}
+.combat-tab {
+display:flex;
+align-items:center;
+gap:8px;
+background:#2b2b2b;
+border:1px solid #444;
+color:#ddd;
+padding:9px 12px;
+border-radius:8px;
+cursor:pointer;
+white-space:nowrap;
+}
+.combat-tab.active {
+background:#555;
+border-color:#666;
+color:#fff;
+}
+.combat-tab-name {
+max-width:180px;
+overflow:hidden;
+text-overflow:ellipsis;
+}
+.combat-tab-close {
+border:0;
+background:transparent;
+color:#aaa;
+cursor:pointer;
+font-size:16px;
+padding:0 2px;
+}
+.combat-tab-close:hover { color:#fff; }
+
+.combat-toolbar {
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+align-items:center;
+margin:20px 0;
+}
+.combat-table-wrap {
+overflow-x:auto;
+background:#242424;
+border:1px solid #3d3d3d;
+border-radius:12px;
+}
+.combat-table {
+width:100%;
+border-collapse:collapse;
+min-width:1050px;
+}
+.combat-table th {
+background:#303030;
+color:#aaa;
+font-size:12px;
+padding:10px 8px;
+text-align:center;
+white-space:nowrap;
+}
+.combat-table td {
+padding:8px;
+border-top:1px solid #3d3d3d;
+text-align:center;
+vertical-align:middle;
+}
+.combat-row.player-row { background:rgba(63,127,95,.22); }
+.combat-row.monster-row { background:rgba(130,60,60,.22); }
+.combat-row.manual-row { background:#292929; }
+.combat-name-cell {
+text-align:left !important;
+font-weight:600;
+min-width:170px;
+}
+.combat-type {
+display:inline-block;
+font-size:11px;
+color:#aaa;
+margin-left:5px;
+font-weight:400;
+}
+.combat-number {
+font-weight:700;
+color:#aaa;
+}
+.combat-number-input {
+width:64px;
+box-sizing:border-box;
+text-align:center;
+background:#181818;
+border:1px solid #555;
+color:#fff;
+border-radius:6px;
+padding:7px 4px;
+}
+.combat-number-input.hp-input,
+.combat-number-input.ac-input {
+width:72px;
+}
+.combat-cell-actions {
+display:flex;
+justify-content:center;
+align-items:center;
+gap:4px;
+}
+.combat-mini-btn {
+border:0;
+background:#444;
+color:#fff;
+border-radius:5px;
+min-width:30px;
+height:30px;
+cursor:pointer;
+}
+.combat-mini-btn:hover { background:#5a5a5a; }
+.combat-dice-btn {
+border:0;
+background:#444;
+color:#fff;
+border-radius:5px;
+min-width:32px;
+height:32px;
+cursor:pointer;
+}
+.combat-dice-btn:hover { background:#666; }
+.combat-effect-select {
+min-width:145px;
+max-width:180px;
+background:#181818;
+border:1px solid #555;
+color:#fff;
+border-radius:6px;
+padding:7px 5px;
+}
+.combat-check {
+width:18px;
+height:18px;
+cursor:pointer;
+}
+.combat-remove {
+border:0;
+background:#633b3b;
+color:#fff;
+border-radius:6px;
+padding:7px 9px;
+cursor:pointer;
+}
+.combat-remove:hover { background:#7a4646; }
+.combat-empty {
+padding:45px 20px;
+text-align:center;
+color:#aaa;
+}
+.combat-import-panel {
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+align-items:center;
+padding:14px;
+background:#242424;
+border:1px solid #3d3d3d;
+border-radius:10px;
+}
+.combat-import-panel select {
+background:#181818;
+color:#fff;
+border:1px solid #555;
+border-radius:7px;
+padding:10px;
+min-width:220px;
+}
+.combat-rename {
+background:#181818;
+color:#fff;
+border:1px solid #555;
+border-radius:7px;
+padding:9px 10px;
+width:190px;
+}
+.combat-status {
+color:#aaa;
+font-size:13px;
+margin-left:auto;
+}
 .empty-state {
     background: #242424;
     border: 1px solid #3d3d3d;
@@ -543,7 +734,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.10
+        V0.11
     </div>
 
 </header>
@@ -757,27 +948,17 @@ input:focus {
 
 <section id="combat" class="page">
 
-    <div class="welcome">
-
-        <h2>⚔️ Combats</h2>
-
-        <p>
-            Préparez et gérez vos combats.
-        </p>
-
+    <div class="page-header">
+        <div>
+            <h2>⚔️ Combats</h2>
+            <p style="color:#aaa;margin:6px 0 0;">Prépare et gère tes combats.</p>
+        </div>
+        <button class="primary-button" onclick="createCombat()">➕ Nouveau combat</button>
     </div>
 
+    <div id="combatTabs" class="combat-tabs"></div>
 
-    <div class="placeholder">
-
-        <h3>🗡️ Aucun combat créé</h3>
-
-        <p>
-            La gestion des combats sera ajoutée
-            dans une prochaine étape.
-        </p>
-
-    </div>
+    <div id="combatWorkspace"></div>
 
 </section>
 
@@ -1022,7 +1203,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.10";
+const APP_VERSION = "V0.11";
 
 const PLAYER_STORAGE_KEY = "dnd_players";
 
@@ -3091,12 +3272,488 @@ function deleteGroup(type, groupId) {
 }
 
 
+
+/* =====================================================
+   COMBATS
+===================================================== */
+
+const COMBAT_STORAGE_KEY = "dnd_combats";
+
+let combats = [];
+let activeCombatId = null;
+
+const COMBAT_EFFECTS = [
+    ["", "— Aucun effet —"],
+    ["stunned", "😵 Étourdi"],
+    ["charmed", "💗 Charmé"],
+    ["frightened", "😨 Effrayé"],
+    ["poisoned", "🤢 Empoisonné"],
+    ["paralyzed", "🧊 Paralysé"],
+    ["petrified", "🗿 Pétrifié"],
+    ["blinded", "🙈 Aveuglé"],
+    ["deafened", "🙉 Assourdi"],
+    ["invisible", "👻 Invisible"],
+    ["restrained", "🪢 Entravé"],
+    ["incapacitated", "💫 Incapable d'agir"],
+    ["unconscious", "💤 Inconscient"],
+    ["prone", "⬇️ À terre"],
+    ["grappled", "🤼 Agrippé"],
+    ["burning", "🔥 En feu"],
+    ["bleeding", "🩸 Saignement"],
+    ["possessed", "👁️ Possédé"],
+    ["stable", "❤️‍🩹 Stabilisé"]
+];
+
+function loadCombats() {
+    try {
+        const saved = localStorage.getItem(COMBAT_STORAGE_KEY);
+        combats = saved ? JSON.parse(saved) : [];
+        if (!Array.isArray(combats)) combats = [];
+    } catch (error) {
+        console.error("Erreur de chargement des combats :", error);
+        combats = [];
+    }
+}
+
+function saveCombats() {
+    try {
+        localStorage.setItem(COMBAT_STORAGE_KEY, JSON.stringify(combats));
+        return true;
+    } catch (error) {
+        console.error("Erreur de sauvegarde des combats :", error);
+        alert("Impossible de sauvegarder les combats.");
+        return false;
+    }
+}
+
+function getActiveCombat() {
+    return combats.find(c => c.id === activeCombatId) || null;
+}
+
+function createCombat() {
+    const combat = {
+        id: Date.now() + Math.random(),
+        name: `Combat ${combats.length + 1}`,
+        fighters: []
+    };
+
+    combats.push(combat);
+    activeCombatId = combat.id;
+    saveCombats();
+    renderCombats();
+}
+
+function openCombat() {
+    showPage("combat");
+    loadCombats();
+
+    if (!activeCombatId && combats.length) {
+        activeCombatId = combats[0].id;
+    }
+
+    renderCombats();
+}
+
+function renderCombats() {
+    const tabs = document.getElementById("combatTabs");
+    const workspace = document.getElementById("combatWorkspace");
+    if (!tabs || !workspace) return;
+
+    if (!combats.length) {
+        tabs.innerHTML = "";
+        workspace.innerHTML = `
+            <div class="placeholder">
+                <h3>🗡️ Aucun combat créé</h3>
+                <p>Clique sur « Nouveau combat » pour préparer ton premier combat.</p>
+            </div>`;
+        return;
+    }
+
+    const active = getActiveCombat() || combats[0];
+    activeCombatId = active.id;
+
+    tabs.innerHTML = combats.map(combat => `
+        <button class="combat-tab ${combat.id === activeCombatId ? "active" : ""}"
+                onclick="selectCombat(${combat.id})">
+            <span class="combat-tab-name">${escapeHtml(combat.name)}</span>
+            <span class="combat-tab-close"
+                  onclick="event.stopPropagation();deleteCombat(${combat.id})">×</span>
+        </button>
+    `).join("");
+
+    workspace.innerHTML = renderCombatWorkspace(active);
+    attachCombatListeners();
+}
+
+function renderCombatWorkspace(combat) {
+    const playerGroupOptions = playerGroups.map(group =>
+        `<option value="${escapeHtml(String(group.id))}">${escapeHtml(group.name)}</option>`
+    ).join("");
+
+    const monsterGroupOptions = monsterGroups.map(group =>
+        `<option value="${escapeHtml(String(group.id))}">${escapeHtml(group.name)}</option>`
+    ).join("");
+
+    const rows = combat.fighters && combat.fighters.length
+        ? combat.fighters.map((fighter, index) => renderCombatRow(fighter, index)).join("")
+        : `<tr><td colspan="10" class="combat-empty">
+                Aucun combattant. Importe un groupe ou ajoute une ligne manuellement.
+           </td></tr>`;
+
+    return `
+        <div class="combat-toolbar">
+            <input
+                class="combat-rename"
+                value="${escapeHtml(combat.name)}"
+                onchange="renameCombat(${combat.id}, this.value)"
+                title="Nom du combat">
+            <button class="secondary-button" onclick="addManualFighter()">➕ Ajouter un combattant</button>
+            <button class="secondary-button" onclick="sortCombatByInitiative()">↕️ Trier initiative</button>
+            <span class="combat-status">${combat.fighters.length} combattant(s)</span>
+        </div>
+
+        <div class="combat-import-panel">
+            <strong>👥 Joueurs</strong>
+            <select id="playerGroupImport">
+                <option value="">Choisir un groupe…</option>
+                ${playerGroupOptions}
+            </select>
+            <button class="primary-button" onclick="importPlayerGroup()">Importer</button>
+
+            <strong style="margin-left:8px;">👹 Monstres</strong>
+            <select id="monsterGroupImport">
+                <option value="">Choisir un groupe…</option>
+                ${monsterGroupOptions}
+            </select>
+            <button class="primary-button" onclick="importMonsterGroup()">Importer</button>
+        </div>
+
+        <div class="combat-table-wrap" style="margin-top:15px;">
+            <table class="combat-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Initiative</th>
+                        <th>Personnage</th>
+                        <th>Concentration</th>
+                        <th>Avantage</th>
+                        <th>Désavantage</th>
+                        <th>Vie</th>
+                        <th>CA</th>
+                        <th>Effet</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+    `;
+}
+
+function renderCombatRow(fighter, index) {
+    const rowClass =
+        fighter.type === "player" ? "player-row" :
+        fighter.type === "monster" ? "monster-row" : "manual-row";
+
+    const typeLabel =
+        fighter.type === "player" ? "Joueur" :
+        fighter.type === "monster" ? "Monstre" : "Manuel";
+
+    const effectOptions = COMBAT_EFFECTS.map(([value, label]) =>
+        `<option value="${escapeHtml(value)}" ${fighter.effect === value ? "selected" : ""}>${escapeHtml(label)}</option>`
+    ).join("");
+
+    const initiative = fighter.initiative ?? "";
+    const hp = fighter.hp ?? "";
+    const ac = fighter.ac ?? "";
+
+    return `
+        <tr class="combat-row ${rowClass}" data-index="${index}">
+            <td class="combat-number">${index + 1}</td>
+
+            <td>
+                <div class="combat-cell-actions">
+                    <input
+                        class="combat-number-input"
+                        value="${escapeHtml(String(initiative))}"
+                        type="number"
+                        min="0"
+                        max="99"
+                        onchange="updateFighter(${index}, 'initiative', this.value)">
+                    <button class="combat-dice-btn"
+                            onclick="rerollCombatInitiative(${index})"
+                            title="Relancer l'initiative">🎲</button>
+                </div>
+            </td>
+
+            <td class="combat-name-cell">
+                ${escapeHtml(fighter.name || "Sans nom")}
+                <span class="combat-type">${typeLabel}</span>
+            </td>
+
+            <td>
+                <input class="combat-check" type="checkbox"
+                       ${fighter.concentration ? "checked" : ""}
+                       onchange="updateFighter(${index}, 'concentration', this.checked)">
+            </td>
+
+            <td>
+                <input class="combat-check" type="checkbox"
+                       ${fighter.advantage ? "checked" : ""}
+                       onchange="updateFighter(${index}, 'advantage', this.checked)">
+            </td>
+
+            <td>
+                <input class="combat-check" type="checkbox"
+                       ${fighter.disadvantage ? "checked" : ""}
+                       onchange="updateFighter(${index}, 'disadvantage', this.checked)">
+            </td>
+
+            <td>
+                <div class="combat-cell-actions">
+                    <button class="combat-mini-btn" onclick="changeFighterValue(${index}, 'hp', -1)">−</button>
+                    <input
+                        class="combat-number-input hp-input"
+                        value="${escapeHtml(String(hp))}"
+                        type="number"
+                        min="0"
+                        onchange="updateFighter(${index}, 'hp', this.value)">
+                    <button class="combat-mini-btn" onclick="changeFighterValue(${index}, 'hp', 1)">+</button>
+                </div>
+            </td>
+
+            <td>
+                <div class="combat-cell-actions">
+                    <button class="combat-mini-btn" onclick="changeFighterValue(${index}, 'ac', -1)">−</button>
+                    <input
+                        class="combat-number-input ac-input"
+                        value="${escapeHtml(String(ac))}"
+                        type="number"
+                        min="0"
+                        onchange="updateFighter(${index}, 'ac', this.value)">
+                    <button class="combat-mini-btn" onclick="changeFighterValue(${index}, 'ac', 1)">+</button>
+                </div>
+            </td>
+
+            <td>
+                <select class="combat-effect-select"
+                        onchange="updateFighter(${index}, 'effect', this.value)">
+                    ${effectOptions}
+                </select>
+            </td>
+
+            <td>
+                <button class="combat-remove"
+                        onclick="removeFighter(${index})"
+                        title="Supprimer ce combattant">🗑️</button>
+            </td>
+        </tr>
+    `;
+}
+
+function attachCombatListeners() {
+    // Réservé aux futurs contrôles du combat.
+}
+
+function selectCombat(id) {
+    activeCombatId = id;
+    renderCombats();
+}
+
+function renameCombat(id, name) {
+    const combat = combats.find(c => c.id === id);
+    if (!combat) return;
+
+    const clean = String(name || "").trim();
+    if (clean) combat.name = clean;
+
+    saveCombats();
+    renderCombats();
+}
+
+function deleteCombat(id) {
+    const combat = combats.find(c => c.id === id);
+    if (!combat) return;
+
+    if (!confirm(`Supprimer le combat "${combat.name}" ?`)) return;
+
+    combats = combats.filter(c => c.id !== id);
+    activeCombatId = combats.length ? combats[0].id : null;
+    saveCombats();
+    renderCombats();
+}
+
+function addManualFighter() {
+    const combat = getActiveCombat();
+    if (!combat) return;
+
+    combat.fighters.push({
+        id: Date.now() + Math.random(),
+        type: "manual",
+        name: "Nouveau combattant",
+        initiative: "",
+        concentration: false,
+        advantage: false,
+        disadvantage: false,
+        hp: 0,
+        ac: 0,
+        effect: ""
+    });
+
+    saveCombats();
+    renderCombats();
+}
+
+function updateFighter(index, field, value) {
+    const combat = getActiveCombat();
+    if (!combat || !combat.fighters[index]) return;
+
+    if (field === "concentration" ||
+        field === "advantage" ||
+        field === "disadvantage") {
+        combat.fighters[index][field] = Boolean(value);
+    } else if (field === "initiative" ||
+               field === "hp" ||
+               field === "ac") {
+        combat.fighters[index][field] =
+            value === "" ? "" : Math.max(0, Number(value) || 0);
+    } else {
+        combat.fighters[index][field] = value;
+    }
+
+    saveCombats();
+}
+
+function changeFighterValue(index, field, amount) {
+    const combat = getActiveCombat();
+    if (!combat || !combat.fighters[index]) return;
+
+    const current = Number(combat.fighters[index][field]) || 0;
+    combat.fighters[index][field] = Math.max(0, current + amount);
+    saveCombats();
+    renderCombats();
+}
+
+function rerollCombatInitiative(index) {
+    const combat = getActiveCombat();
+    if (!combat || !combat.fighters[index]) return;
+
+    combat.fighters[index].initiative = rollDice(1, 20);
+    saveCombats();
+    renderCombats();
+}
+
+function sortCombatByInitiative() {
+    const combat = getActiveCombat();
+    if (!combat) return;
+
+    combat.fighters.sort((a, b) => {
+        const ai = Number(a.initiative);
+        const bi = Number(b.initiative);
+
+        if (Number.isNaN(ai) && Number.isNaN(bi)) return 0;
+        if (Number.isNaN(ai)) return 1;
+        if (Number.isNaN(bi)) return -1;
+        return bi - ai;
+    });
+
+    saveCombats();
+    renderCombats();
+}
+
+function importPlayerGroup() {
+    const combat = getActiveCombat();
+    const select = document.getElementById("playerGroupImport");
+    if (!combat || !select || !select.value) {
+        alert("Choisis d'abord un groupe de joueurs.");
+        return;
+    }
+
+    const group = playerGroups.find(g => String(g.id) === String(select.value));
+    if (!group) return;
+
+    let added = 0;
+
+    (group.members || []).forEach(member => {
+        const playerId = Number(member.sourceId ?? member);
+        const player = players.find(p => p.id === playerId);
+        if (!player) return;
+
+        combat.fighters.push({
+            id: Date.now() + Math.random(),
+            type: "player",
+            sourceId: player.id,
+            name: player.characterName || "Joueur",
+            initiative: "",
+            concentration: false,
+            advantage: false,
+            disadvantage: false,
+            hp: Number(player.hp) || 0,
+            ac: Number(player.ac) || 0,
+            effect: "",
+            imageId: player.imageId || null
+        });
+
+        added++;
+    });
+
+    saveCombats();
+    renderCombats();
+
+    if (!added) {
+        alert("Aucun joueur valide n'a pu être importé.");
+    }
+}
+
+function importMonsterGroup() {
+    const combat = getActiveCombat();
+    const select = document.getElementById("monsterGroupImport");
+    if (!combat || !select || !select.value) {
+        alert("Choisis d'abord un groupe de monstres.");
+        return;
+    }
+
+    const group = monsterGroups.find(g => String(g.id) === String(select.value));
+    if (!group) return;
+
+    let instances = [];
+
+    if (Array.isArray(group.instances) && group.instances.length) {
+        instances = group.instances.map(instance => ({ ...instance }));
+    } else if (typeof expandMonsterGroup === "function") {
+        instances = expandMonsterGroup(group);
+    }
+
+    instances.forEach(monster => {
+        combat.fighters.push({
+            id: Date.now() + Math.random(),
+            type: "monster",
+            sourceId: monster.sourceId,
+            name: monster.name,
+            initiative: Number(monster.initiative) || "",
+            concentration: false,
+            advantage: false,
+            disadvantage: false,
+            hp: Number(monster.hp) || 0,
+            ac: Number(monster.ac) || 0,
+            effect: "",
+            imageId: monster.imageId || null,
+            hpFormula: monster.hpFormula || ""
+        });
+    });
+
+    saveCombats();
+    renderCombats();
+}
+
+
 async function initializeApp() {
 
     loadPlayers();
     loadMonsters();
 
     loadGroups();
+    loadCombats();
 
 
     /*
