@@ -684,30 +684,6 @@ justify-content:center;
 color:#666;
 font-size:28px;
 }
-
-.combat-display-result {
-position:fixed;
-inset:0;
-display:flex;
-flex-direction:column;
-align-items:center;
-justify-content:center;
-background:rgba(10,10,10,.88);
-z-index:20;
-text-align:center;
-pointer-events:none;
-}
-.combat-display-result-title {
-font-size:72px;
-font-weight:900;
-letter-spacing:2px;
-text-shadow:0 4px 18px #000;
-}
-.combat-display-result-subtitle {
-font-size:24px;
-color:#ccc;
-margin-top:12px;
-}
 .combat-display-empty {
 padding:80px 20px;
 text-align:center;
@@ -918,7 +894,7 @@ input:focus {
     </p>
 
     <div class="version">
-        V0.14
+        V0.13
     </div>
 
 </header>
@@ -1389,6 +1365,146 @@ input:focus {
 
 const APP_VERSION = "V0.14";
 
+
+/* =====================================================
+   PROTECTION DES DONNÉES — NE JAMAIS ÉCRASER UNE BASE
+   EXISTANTE PAR UNE BASE VIDE
+===================================================== */
+const DATA_KEYS = [
+    "dnd_players",
+    "dnd_monsters",
+    "dnd_player_groups",
+    "dnd_monster_groups",
+    "dnd_combats"
+];
+const BACKUP_PREFIX = "dnd_safe_backup_";
+const BACKUP_COUNT = 5;
+
+function dataArray(key) {
+    try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const value = JSON.parse(raw);
+        return Array.isArray(value) ? value : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function backupKey(key, n) {
+    return BACKUP_PREFIX + n + "_" + key;
+}
+
+function backupBeforeWrite(key) {
+    const current = dataArray(key);
+    if (!current || current.length === 0) return;
+    try {
+        for (let n = BACKUP_COUNT; n > 1; n--) {
+            const previous = localStorage.getItem(backupKey(key, n - 1));
+            if (previous) localStorage.setItem(backupKey(key, n), previous);
+        }
+        localStorage.setItem(backupKey(key, 1), JSON.stringify(current));
+    } catch (e) {
+        console.error("Backup impossible", key, e);
+    }
+}
+
+function guardedSave(key, value) {
+    if (!Array.isArray(value)) return false;
+    const current = dataArray(key);
+    if (value.length === 0 && current && current.length > 0) {
+        console.warn("Écriture vide refusée pour", key);
+        return false;
+    }
+    backupBeforeWrite(key);
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+    } catch (e) {
+        console.error("Sauvegarde impossible", key, e);
+        return false;
+    }
+}
+
+function recoverIfEmpty(key) {
+    const current = dataArray(key);
+    if (current && current.length > 0) return current;
+    for (let n = 1; n <= BACKUP_COUNT; n++) {
+        try {
+            const raw = localStorage.getItem(backupKey(key, n));
+            if (!raw) continue;
+            const value = JSON.parse(raw);
+            if (Array.isArray(value) && value.length > 0) {
+                localStorage.setItem(key, JSON.stringify(value));
+                console.warn("Récupération automatique", key, "backup", n);
+                return value;
+            }
+        } catch (e) {}
+    }
+    return [];
+}
+
+function makeCampaignSnapshot() {
+    const snapshot = {};
+    let hasData = false;
+    for (const key of DATA_KEYS) {
+        const value = dataArray(key);
+        if (value && value.length > 0) {
+            snapshot[key] = value;
+            hasData = true;
+        }
+    }
+    if (!hasData) return;
+    try {
+        localStorage.setItem(
+            "dnd_campaign_snapshot",
+            JSON.stringify({ version: APP_VERSION, date: new Date().toISOString(), data: snapshot })
+        );
+    } catch (e) {}
+}
+
+function exportCampaign() {
+    makeCampaignSnapshot();
+    const data = {};
+    for (const key of DATA_KEYS) data[key] = dataArray(key) || [];
+    const blob = new Blob([
+        JSON.stringify({ app: "D&D Combat Tracker", version: APP_VERSION, exportedAt: new Date().toISOString(), data }, null, 2)
+    ], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "dnd-campagne-sauvegarde.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
+
+async function importCampaign(file) {
+    if (!file) return;
+    try {
+        const payload = JSON.parse(await file.text());
+        if (!payload || !payload.data) throw new Error("Format invalide");
+        if (!confirm("Restaurer cette campagne ? Une sauvegarde de sécurité sera conservée avant restauration.")) return;
+        for (const key of DATA_KEYS) {
+            if (Array.isArray(payload.data[key])) {
+                backupBeforeWrite(key);
+                localStorage.setItem(key, JSON.stringify(payload.data[key]));
+            }
+        }
+        loadPlayers(); loadMonsters(); loadGroups(); loadCombats();
+        if (typeof renderPlayers === "function") renderPlayers();
+        if (typeof renderMonsters === "function") renderMonsters();
+        if (typeof renderPlayerGroups === "function") renderPlayerGroups();
+        if (typeof renderMonsterGroups === "function") renderMonsterGroups();
+        if (typeof renderCombats === "function") renderCombats();
+        alert("Campagne restaurée.");
+    } catch (e) {
+        console.error(e);
+        alert("Fichier de sauvegarde invalide.");
+    }
+}
+
 const PLAYER_STORAGE_KEY = "dnd_players";
 
 const DB_NAME = "dnd_combat_tracker_db";
@@ -1623,10 +1739,7 @@ function loadPlayers() {
             );
 
 
-        players =
-            saved
-                ? JSON.parse(saved)
-                : [];
+        players = saved ? JSON.parse(saved) : recoverIfEmpty(PLAYER_STORAGE_KEY);
 
 
         if (!Array.isArray(players)) {
@@ -1654,31 +1767,7 @@ function loadPlayers() {
 ===================================================== */
 
 function savePlayers() {
-
-    try {
-
-        localStorage.setItem(
-            PLAYER_STORAGE_KEY,
-            JSON.stringify(players)
-        );
-
-        return true;
-
-    } catch (error) {
-
-        console.error(
-            "Erreur de sauvegarde :",
-            error
-        );
-
-        alert(
-            "Impossible de sauvegarder les données."
-        );
-
-        return false;
-
-    }
-
+    return guardedSave(PLAYER_STORAGE_KEY, players);
 }
 
 
@@ -2598,7 +2687,7 @@ let editingMonsterId = null;
 function loadMonsters() {
     try {
         const saved = localStorage.getItem(MONSTER_STORAGE_KEY);
-        monsters = saved ? JSON.parse(saved) : [];
+        monsters = saved ? JSON.parse(saved) : recoverIfEmpty(MONSTER_STORAGE_KEY);
         if (!Array.isArray(monsters)) monsters = [];
     } catch (error) {
         console.error("Erreur de chargement des monstres :", error);
@@ -2607,14 +2696,7 @@ function loadMonsters() {
 }
 
 function saveMonsters() {
-    try {
-        localStorage.setItem(MONSTER_STORAGE_KEY, JSON.stringify(monsters));
-        return true;
-    } catch (error) {
-        console.error("Erreur de sauvegarde des monstres :", error);
-        alert("Impossible de sauvegarder les monstres.");
-        return false;
-    }
+    return guardedSave(MONSTER_STORAGE_KEY, monsters);
 }
 
 function openMonsters() {
@@ -2912,8 +2994,8 @@ function loadGroups() {
     try {
         const pg = localStorage.getItem(PLAYER_GROUP_STORAGE_KEY);
         const mg = localStorage.getItem(MONSTER_GROUP_STORAGE_KEY);
-        playerGroups = pg ? JSON.parse(pg) : [];
-        monsterGroups = mg ? JSON.parse(mg) : [];
+        playerGroups = pg ? JSON.parse(pg) : recoverIfEmpty(PLAYER_GROUP_STORAGE_KEY);
+        monsterGroups = mg ? JSON.parse(mg) : recoverIfEmpty(MONSTER_GROUP_STORAGE_KEY);
         if (!Array.isArray(playerGroups)) playerGroups = [];
         if (!Array.isArray(monsterGroups)) monsterGroups = [];
 
@@ -2944,15 +3026,8 @@ function loadGroups() {
 }
 
 function saveGroups() {
-    try {
-        localStorage.setItem(PLAYER_GROUP_STORAGE_KEY, JSON.stringify(playerGroups));
-        localStorage.setItem(MONSTER_GROUP_STORAGE_KEY, JSON.stringify(monsterGroups));
-        return true;
-    } catch (error) {
-        console.error("Erreur de sauvegarde des groupes :", error);
-        alert("Impossible de sauvegarder les groupes.");
-        return false;
-    }
+    return guardedSave(PLAYER_GROUP_STORAGE_KEY, playerGroups) &&
+           guardedSave(MONSTER_GROUP_STORAGE_KEY, monsterGroups);
 }
 
 function openPlayerGroups() {
@@ -3491,7 +3566,7 @@ const COMBAT_EFFECTS = [
 function loadCombats() {
     try {
         const saved = localStorage.getItem(COMBAT_STORAGE_KEY);
-        combats = saved ? JSON.parse(saved) : [];
+        combats = saved ? JSON.parse(saved) : recoverIfEmpty(COMBAT_STORAGE_KEY);
         if (!Array.isArray(combats)) combats = [];
     } catch (error) {
         console.error("Erreur de chargement des combats :", error);
@@ -3500,14 +3575,7 @@ function loadCombats() {
 }
 
 function saveCombats() {
-    try {
-        localStorage.setItem(COMBAT_STORAGE_KEY, JSON.stringify(combats));
-        return true;
-    } catch (error) {
-        console.error("Erreur de sauvegarde des combats :", error);
-        alert("Impossible de sauvegarder les combats.");
-        return false;
-    }
+    return guardedSave(COMBAT_STORAGE_KEY, combats);
 }
 
 function getActiveCombat() {
@@ -3594,8 +3662,6 @@ function renderCombatWorkspace(combat) {
             <button class="secondary-button" onclick="addManualFighter()">➕ Ajouter un combattant</button>
             <button class="secondary-button" onclick="sortCombatByInitiative()">↕️ Trier initiative</button>
             <button class="primary-button" onclick="launchCombatWindow()">▶️ Lancer le combat</button>
-            <button class="secondary-button" onclick="combatDisplayPrevious()">◀️ Précédent</button>
-            <button class="secondary-button" onclick="combatDisplayNext()">▶️ Combattant suivant</button>
             <span class="combat-status">${combat.fighters.length} combattant(s)</span>
         </div>
 
@@ -4016,6 +4082,11 @@ function writeCombatDisplayDocument() {
                     <div id="displayTitle" class="combat-display-title">⚔️ Combat</div>
                     <div id="displayTurn" class="combat-display-turn">Préparation</div>
                 </div>
+                <div class="combat-display-controls">
+                    <button onclick="window.opener.combatDisplayPrevious()">◀ Tour précédent</button>
+                    <button onclick="window.opener.combatDisplayNext()">Tour suivant ▶</button>
+                    <button onclick="window.close()">✕ Fermer</button>
+                </div>
             </header>
             <main id="displayTrack" class="combat-display-track"></main>
         </body>
@@ -4037,51 +4108,10 @@ function getCombatDisplayCSS() {
 
 function getDisplayVisibleCount(combat) {
     if (!combat.displayStarted) return 0;
-    return Math.min(combat.fighters.length, Math.max(1, Number(combat.displayVisibleCount) || 1));
-}
-
-function getTurnEligibleFighters(combat) {
-    return (combat.fighters || []).filter(fighter => {
-        // Dead monsters are skipped. Players at 0 PV remain in the turn order.
-        return !(fighter.type === "monster" && Number(fighter.hp) <= 0);
-    });
-}
-
-function getCombatResult(combat) {
-    const players = combat.fighters.filter(f => f.type === "player");
-    const monsters = combat.fighters.filter(f => f.type === "monster");
-
-    if (!players.length || !monsters.length) return null;
-
-    const livingPlayers = players.filter(f => Number(f.hp) > 0);
-    const livingMonsters = monsters.filter(f => Number(f.hp) > 0);
-
-    if (livingMonsters.length === 0 && livingPlayers.length > 0) {
-        return { title: "🏆 VICTOIRE !", subtitle: "Tous les monstres sont vaincus." };
-    }
-
-    if (livingPlayers.length === 0 && livingMonsters.length > 0) {
-        return { title: "💀 GAME OVER", subtitle: "Le groupe ne peut plus continuer." };
-    }
-
-    return null;
-}
-
-function renderCombatResult(doc, combat) {
-    const old = doc.getElementById("displayResult");
-    if (old) old.remove();
-
-    const result = getCombatResult(combat);
-    if (!result) return;
-
-    const overlay = doc.createElement("div");
-    overlay.id = "displayResult";
-    overlay.className = "combat-display-result";
-    overlay.innerHTML = `
-        <div class="combat-display-result-title">${result.title}</div>
-        <div class="combat-display-result-subtitle">${result.subtitle}</div>
-    `;
-    doc.body.appendChild(overlay);
+    return Math.min(
+        combat.fighters.length,
+        Math.max(1, Number(combat.displayVisibleCount) || 1)
+    );
 }
 
 function renderCombatDisplay() {
@@ -4122,7 +4152,6 @@ function renderCombatDisplay() {
     }).join("");
 
     track.innerHTML = cards;
-    renderCombatResult(combatDisplayWindow.document, combat);
 }
 
 function getImageSource(imageId) {
@@ -4202,32 +4231,17 @@ function combatDisplayNext() {
     const combat = combats.find(c => c.id === combatDisplayCombatId);
     if (!combat || !combat.fighters.length) return;
 
-    const eligible = getTurnEligibleFighters(combat);
-    if (!eligible.length) return;
-
     if (!combat.displayStarted) {
         startCombatDisplayState();
         return;
     }
 
-    const currentIndex = Number(combat.currentIndex) || 0;
-    let nextIndex = currentIndex;
-    let attempts = 0;
+    combat.currentIndex = (Number(combat.currentIndex) + 1) % combat.fighters.length;
 
-    do {
-        nextIndex = (nextIndex + 1) % combat.fighters.length;
-        attempts++;
-    } while (
-        combat.fighters[nextIndex].type === "monster" &&
-        Number(combat.fighters[nextIndex].hp) <= 0 &&
-        attempts <= combat.fighters.length
-    );
-
-    if (nextIndex <= currentIndex) {
+    if (combat.currentIndex === 0) {
         combat.currentTurn = (Number(combat.currentTurn) || 1) + 1;
     }
 
-    combat.currentIndex = nextIndex;
     combat.displayVisibleCount = Math.max(
         Number(combat.displayVisibleCount) || 1,
         Math.min(combat.fighters.length, Number(combat.displayVisibleCount) + 1)
@@ -4241,36 +4255,70 @@ function combatDisplayPrevious() {
     const combat = combats.find(c => c.id === combatDisplayCombatId);
     if (!combat || !combat.fighters.length) return;
 
-    const eligible = getTurnEligibleFighters(combat);
-    if (!eligible.length) return;
-
     if (!combat.displayStarted) {
         startCombatDisplayState();
         return;
     }
 
-    const currentIndex = Number(combat.currentIndex) || 0;
-    let previousIndex = currentIndex;
-    let attempts = 0;
+    combat.currentIndex = (Number(combat.currentIndex) - 1 + combat.fighters.length) %
+        combat.fighters.length;
 
-    do {
-        previousIndex = (previousIndex - 1 + combat.fighters.length) % combat.fighters.length;
-        attempts++;
-    } while (
-        combat.fighters[previousIndex].type === "monster" &&
-        Number(combat.fighters[previousIndex].hp) <= 0 &&
-        attempts <= combat.fighters.length
-    );
-
-    if (previousIndex > currentIndex) {
+    if (combat.currentIndex === combat.fighters.length - 1) {
         combat.currentTurn = Math.max(1, (Number(combat.currentTurn) || 1) - 1);
     }
-
-    combat.currentIndex = previousIndex;
 
     saveCombats();
     renderCombatDisplay();
 }
+
+
+async function initializeApp() {
+
+    loadPlayers();
+    loadMonsters();
+
+    loadGroups();
+    loadCombats();
+
+    makeCampaignSnapshot();
+
+
+    /*
+     * Création de la base IndexedDB
+     */
+
+    try {
+
+        await openDatabase();
+
+    } catch (error) {
+
+        console.error(
+            "IndexedDB indisponible :",
+            error
+        );
+
+    }
+
+
+    /*
+     * Migration éventuelle
+     * des anciennes images.
+     */
+
+    await migrateOldImages();
+
+
+    /*
+     * Affichage
+     */
+
+    await renderPlayers();
+
+}
+
+
+initializeApp();
 
 </script>
 
