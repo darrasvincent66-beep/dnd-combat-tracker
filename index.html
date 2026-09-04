@@ -477,6 +477,29 @@ input:focus {
     }
 }
 
+
+/* =========================
+   MONSTRES
+========================= */
+.monsters-list {
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+    gap:20px;
+}
+.monster-card {
+    background:#242424;
+    border:1px solid #4d3d3d;
+    border-radius:12px;
+    overflow:hidden;
+}
+.monster-badge { color:#e5a0a0; font-size:13px; margin-top:4px; }
+.dice-row { display:flex; gap:8px; align-items:center; }
+.dice-row input { flex:1; }
+.dice-button {
+    border:none; background:#555; color:white; min-width:46px;
+    padding:10px 12px; border-radius:7px; cursor:pointer; font-size:18px;
+}
+.dice-button:hover { background:#666; }
 </style>
 </head>
 
@@ -563,7 +586,7 @@ input:focus {
         </div>
 
 
-        <div class="card">
+        <div class="card" onclick="openMonsters()">
 
             <h3>👹 Monstres</h3>
 
@@ -624,6 +647,30 @@ input:focus {
 
         ← Retour à la bibliothèque
 
+    </button>
+
+</section>
+
+
+<!-- =========================
+     MONSTRES
+========================= -->
+
+<section id="monsters" class="page">
+
+    <div class="page-header">
+        <h2>👹 Monstres</h2>
+        <button class="primary-button" onclick="openMonsterForm()">
+            ➕ Ajouter un monstre
+        </button>
+    </div>
+
+    <div id="monstersList"></div>
+
+    <br>
+
+    <button class="secondary-button" onclick="backToLibrary()">
+        ← Retour à la bibliothèque
     </button>
 
 </section>
@@ -832,13 +879,75 @@ input:focus {
 </div>
 
 
+<!-- =========================
+     FORMULAIRE MONSTRE
+========================= -->
+
+<div id="monsterModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="monsterModalTitle">Ajouter un monstre</h2>
+            <button type="button" class="close-button" onclick="closeMonsterForm()">×</button>
+        </div>
+
+        <form id="monsterForm">
+            <div class="form-grid">
+
+                <div class="form-group full">
+                    <label>Nom du monstre</label>
+                    <input id="monsterName" type="text" required placeholder="Ex. Bandit">
+                </div>
+
+                <div class="form-group">
+                    <label>Classe d'armure (CA)</label>
+                    <input id="monsterAC" type="number" min="0" placeholder="Ex. 12">
+                </div>
+
+                <div class="form-group">
+                    <label>Formule des PV</label>
+                    <input id="monsterHPFormula" type="text" placeholder="Ex. 2d8+2">
+                </div>
+
+                <div class="form-group">
+                    <label>Points de vie générés</label>
+                    <div class="dice-row">
+                        <input id="monsterHP" type="number" min="0" placeholder="PV" readonly>
+                        <button type="button" class="dice-button" onclick="rollMonsterHP()">🎲</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Initiative (d20)</label>
+                    <div class="dice-row">
+                        <input id="monsterInitiative" type="number" min="1" max="20" placeholder="Initiative" readonly>
+                        <button type="button" class="dice-button" onclick="rollMonsterInitiative()">🎲</button>
+                    </div>
+                </div>
+
+                <div class="form-group full">
+                    <label>Portrait</label>
+                    <input id="monsterImage" type="file" accept="image/*">
+                    <img id="monsterImagePreview" class="image-preview" alt="Aperçu">
+                </div>
+
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="secondary-button" onclick="closeMonsterForm()">Annuler</button>
+                <button type="submit" class="primary-button">💾 Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
 <script>
 
 /* =====================================================
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.4";
+const APP_VERSION = "V0.5";
 
 const PLAYER_STORAGE_KEY = "dnd_players";
 
@@ -2037,6 +2146,280 @@ async function deletePlayer(playerId) {
 }
 
 
+
+/* =====================================================
+   MONSTRES
+===================================================== */
+
+const MONSTER_STORAGE_KEY = "dnd_monsters";
+let monsters = [];
+let editingMonsterId = null;
+
+function loadMonsters() {
+    try {
+        const saved = localStorage.getItem(MONSTER_STORAGE_KEY);
+        monsters = saved ? JSON.parse(saved) : [];
+        if (!Array.isArray(monsters)) monsters = [];
+    } catch (error) {
+        console.error("Erreur de chargement des monstres :", error);
+        monsters = [];
+    }
+}
+
+function saveMonsters() {
+    try {
+        localStorage.setItem(MONSTER_STORAGE_KEY, JSON.stringify(monsters));
+        return true;
+    } catch (error) {
+        console.error("Erreur de sauvegarde des monstres :", error);
+        alert("Impossible de sauvegarder les monstres.");
+        return false;
+    }
+}
+
+function openMonsters() {
+    showPage("monsters");
+    renderMonsters();
+}
+
+function rollDice(number, sides) {
+    let total = 0;
+    for (let i = 0; i < number; i++) {
+        total += Math.floor(Math.random() * sides) + 1;
+    }
+    return total;
+}
+
+function parseHPFormula(formula) {
+    if (!formula) return null;
+    const cleaned = formula.toLowerCase().replace(/\s/g, "");
+    const match = cleaned.match(/^(\d+)d(\d+)([+-]\d+)?$/);
+    if (!match) return null;
+    const dice = Number(match[1]);
+    const sides = Number(match[2]);
+    const modifier = Number(match[3] || 0);
+    if (!Number.isInteger(dice) || !Number.isInteger(sides) || dice < 1 || sides < 1) return null;
+    return { dice, sides, modifier };
+}
+
+function rollMonsterHP() {
+    const formula = document.getElementById("monsterHPFormula").value;
+    const parsed = parseHPFormula(formula);
+    if (!parsed) {
+        alert("Formule invalide.\n\nExemple : 2d8+2");
+        return;
+    }
+    const result = rollDice(parsed.dice, parsed.sides) + parsed.modifier;
+    document.getElementById("monsterHP").value = Math.max(0, result);
+}
+
+function rollMonsterInitiative() {
+    document.getElementById("monsterInitiative").value = rollDice(1, 20);
+}
+
+async function openMonsterForm(monsterId = null) {
+    editingMonsterId = monsterId;
+    document.getElementById("monsterForm").reset();
+    document.getElementById("monsterImagePreview").style.display = "none";
+
+    if (monsterId !== null) {
+        const monster = monsters.find(m => m.id === monsterId);
+        if (!monster) return;
+
+        document.getElementById("monsterModalTitle").textContent = "Modifier le monstre";
+        document.getElementById("monsterName").value = monster.name || "";
+        document.getElementById("monsterAC").value = monster.ac ?? "";
+        document.getElementById("monsterHPFormula").value = monster.hpFormula || "";
+        document.getElementById("monsterHP").value = monster.hp ?? "";
+        document.getElementById("monsterInitiative").value = monster.initiative ?? "";
+
+        if (monster.imageId) {
+            try {
+                const image = await getImage(monster.imageId);
+                if (image) {
+                    const preview = document.getElementById("monsterImagePreview");
+                    preview.src = image;
+                    preview.style.display = "block";
+                }
+            } catch (error) {
+                console.error("Impossible de charger le portrait du monstre :", error);
+            }
+        }
+    } else {
+        document.getElementById("monsterModalTitle").textContent = "Ajouter un monstre";
+    }
+
+    document.getElementById("monsterModal").classList.add("active");
+}
+
+function closeMonsterForm() {
+    document.getElementById("monsterModal").classList.remove("active");
+    editingMonsterId = null;
+}
+
+document.getElementById("monsterImage").addEventListener("change", function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const preview = document.getElementById("monsterImagePreview");
+        preview.src = e.target.result;
+        preview.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+});
+
+document.getElementById("monsterForm").addEventListener("submit", async function(event) {
+    event.preventDefault();
+
+    const name = document.getElementById("monsterName").value.trim();
+    if (!name) {
+        alert("Le nom du monstre est obligatoire.");
+        return;
+    }
+
+    const existingMonster = editingMonsterId !== null
+        ? monsters.find(m => m.id === editingMonsterId)
+        : null;
+
+    const monsterId = existingMonster ? existingMonster.id : Date.now() + Math.random();
+    let imageId = existingMonster ? existingMonster.imageId || null : null;
+    const imageInput = document.getElementById("monsterImage");
+
+    if (imageInput.files.length > 0) {
+        try {
+            const imageData = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(reader.error);
+                reader.readAsDataURL(imageInput.files[0]);
+            });
+
+            imageId = "monster_" + monsterId;
+            await saveImage(imageData, imageId);
+        } catch (error) {
+            console.error(error);
+            alert("Impossible d'enregistrer le portrait du monstre.");
+            return;
+        }
+    }
+
+    const monsterData = {
+        id: monsterId,
+        name: name,
+        ac: Number(document.getElementById("monsterAC").value) || 0,
+        hpFormula: document.getElementById("monsterHPFormula").value.trim(),
+        hp: Number(document.getElementById("monsterHP").value) || 0,
+        initiative: Number(document.getElementById("monsterInitiative").value) || 0,
+        imageId: imageId
+    };
+
+    if (existingMonster) {
+        Object.assign(existingMonster, monsterData);
+    } else {
+        monsters.push(monsterData);
+    }
+
+    if (saveMonsters()) {
+        closeMonsterForm();
+        await renderMonsters();
+    }
+});
+
+async function renderMonsters() {
+    const container = document.getElementById("monstersList");
+
+    if (monsters.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <h3>👹 Aucun monstre enregistré</h3>
+                <p>Commence par créer ton premier monstre.</p>
+                <br>
+                <button class="primary-button" onclick="openMonsterForm()">➕ Créer un monstre</button>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="monsters-list">
+            ${monsters.map(monster => `
+                <div class="monster-card">
+                    <div class="player-top">
+                        <div class="portrait-placeholder" id="monster-portrait-${monster.id}">👹</div>
+                        <div>
+                            <div class="player-name">${escapeHtml(monster.name)}</div>
+                            <div class="monster-badge">Monstre</div>
+                        </div>
+                    </div>
+
+                    <div class="player-stats">
+                        <div class="stat">
+                            <div class="stat-label">CA</div>
+                            <div class="stat-value">${monster.ac}</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">PV</div>
+                            <div class="stat-value">${monster.hp}</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">Initiative</div>
+                            <div class="stat-value">${monster.initiative}</div>
+                        </div>
+                    </div>
+
+                    <div style="padding:15px;text-align:center;border-bottom:1px solid #3d3d3d;">
+                        🎲 ${escapeHtml(monster.hpFormula || "Aucune formule")}
+                    </div>
+
+                    <div class="player-actions">
+                        <button class="edit-button" onclick="openMonsterForm(${monster.id})">✏️ Modifier</button>
+                        <button class="delete-button" onclick="deleteMonster(${monster.id})">🗑️ Supprimer</button>
+                    </div>
+                </div>
+            `).join("")}
+        </div>`;
+
+    for (const monster of monsters) {
+        if (!monster.imageId) continue;
+
+        try {
+            const image = await getImage(monster.imageId);
+            if (!image) continue;
+
+            const placeholder = document.getElementById("monster-portrait-" + monster.id);
+            if (!placeholder) continue;
+
+            const img = document.createElement("img");
+            img.className = "portrait";
+            img.src = image;
+            img.alt = "";
+            placeholder.replaceWith(img);
+        } catch (error) {
+            console.error("Erreur portrait monstre :", error);
+        }
+    }
+}
+
+async function deleteMonster(monsterId) {
+    const monster = monsters.find(m => m.id === monsterId);
+    if (!monster) return;
+
+    if (!confirm(`Supprimer "${monster.name}" ?`)) return;
+
+    if (monster.imageId) {
+        try {
+            await deleteImage(monster.imageId);
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    monsters = monsters.filter(m => m.id !== monsterId);
+    saveMonsters();
+    await renderMonsters();
+}
+
 /* =====================================================
    ESCAPE HTML
 ===================================================== */
@@ -2075,6 +2458,7 @@ function escapeHtml(value) {
 async function initializeApp() {
 
     loadPlayers();
+    loadMonsters();
 
 
     /*
