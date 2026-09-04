@@ -1195,6 +1195,35 @@ input:focus {
 }
 
 
+
+/* ALPHA 1.7 — buffs de sorts séparés des états */
+.buff-multi .buff-menu {
+    width: 320px !important;
+    max-width: min(320px, calc(100vw - 24px)) !important;
+}
+.buff-check {
+    accent-color: #d6a83d;
+}
+.frise-buffs {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 3px 5px;
+    width: 100%;
+    margin-top: 4px;
+}
+.frise-buff-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 5px;
+    border-radius: 5px;
+    background: rgba(214,168,61,.18);
+    border: 1px solid rgba(214,168,61,.35);
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: normal;
+}
+
 /* ALPHA 1.0 */
 .frise-statuses {
     display: flex;
@@ -1295,7 +1324,7 @@ input:focus {
 }
 
 
-/* ALPHA 1.6 - status menu: one checkbox controls the state */
+/* ALPHA 1.7 - status menu: one checkbox controls the state */
 .status-multi {
     position: relative;
     overflow: visible !important;
@@ -1341,7 +1370,7 @@ input:focus {
 .npc-card .portrait-placeholder, .npc-card .portrait { width: 72px; height: 72px; }
 
 
-/* ALPHA 1.6 — PNJ allié / ennemi */
+/* ALPHA 1.7 — PNJ allié / ennemi */
 .npc-ally-row { background: rgba(63,127,95,.22); }
 .combat-import-panel select { min-width: 145px; }
 #npcAllegianceImport { min-width: 115px; }
@@ -1361,7 +1390,7 @@ input:focus {
     </p>
 
     <div class="version">
-        ALPHA 1.6
+        ALPHA 1.7
     </div>
 
 </header>
@@ -1951,7 +1980,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "ALPHA 1.6";
+const APP_VERSION = "ALPHA 1.7";
 
 
 /* =====================================================
@@ -4402,6 +4431,22 @@ const COMBAT_EFFECTS = [
     ["stable", "❤️‍🩹 Stabilisé"]
 ];
 
+const COMBAT_BUFFS = [
+    ["bardic_inspiration", "✨ Inspiration bardique"],
+    ["bless", "🙏 Bénédiction"],
+    ["guidance", "🧭 Guidance"],
+    ["shield_of_faith", "🛡️ Bouclier de la foi"],
+    ["heroism", "🦸 Héroïsme"],
+    ["haste", "⚡ Hâte"],
+    ["enlarge", "⬆️ Agrandissement"],
+    ["aid", "❤️ Aide"],
+    ["death_ward", "💖 Gardien de la vie"],
+    ["fly", "🪽 Vol"],
+    ["freedom_of_movement", "🏃 Liberté de mouvement"],
+    ["protection_from_energy", "🔰 Protection contre l'énergie"],
+    ["inspiring_leader", "📣 Chef inspirant"]
+];
+
 function loadCombats() {
     try {
         const saved = localStorage.getItem(COMBAT_STORAGE_KEY);
@@ -4584,7 +4629,8 @@ function renderCombatWorkspace(combat) {
                         <th>Désavantage</th>
                         <th>Vie</th>
                         <th>CA</th>
-                        <th>Effet</th>
+                        <th>États</th>
+                        <th>Buffs</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -4688,6 +4734,10 @@ function renderCombatRow(fighter, index, combat = getActiveCombat()) {
 
             <td>
                 ${renderStatusMultiSelect(fighter)}
+            </td>
+
+            <td>
+                ${renderBuffMultiSelect(fighter)}
             </td>
 
             <td>
@@ -5253,6 +5303,73 @@ function renderStatusMultiSelect(fighter) {
     </details>`;
 }
 
+function getFighterBuffs(fighter) {
+    if (!fighter) return [];
+    if (Array.isArray(fighter.buffs)) return fighter.buffs.filter(Boolean);
+    return [];
+}
+
+function setFighterBuffs(fighter, buffs) {
+    if (!fighter) return;
+    fighter.buffs = [...new Set((buffs || []).filter(Boolean))];
+}
+
+function getBuffLabel(buff) {
+    const item = COMBAT_BUFFS.find(([value]) => value === buff);
+    return item ? item[1] : `✨ ${buff}`;
+}
+
+function toggleFighterBuff(fighterId, buff) {
+    const combat = getActiveCombat();
+    if (!combat) return;
+    const fighter = combat.fighters.find(f => String(f.id) === String(fighterId));
+    if (!fighter) return;
+    const current = getFighterBuffs(fighter);
+    if (current.includes(buff)) {
+        setFighterBuffs(fighter, current.filter(b => b !== buff));
+    } else {
+        setFighterBuffs(fighter, [...current, buff]);
+    }
+    saveCombats();
+    renderCombats();
+    renderCombatDisplay();
+}
+
+function renderBuffMultiSelect(fighter) {
+    const selected = [...new Set(getFighterBuffs(fighter))];
+    const safeId = String(fighter.id).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
+    const rows = COMBAT_BUFFS.map(([value, label]) => {
+        const active = selected.includes(value);
+        return `<div class="status-menu-row ${active ? "active" : ""}">
+            <span class="status-menu-label">${escapeHtml(label)}</span>
+            <label class="status-check-wrap" title="${active ? "Buff appliqué — décocher pour le retirer" : "Cocher pour appliquer ce buff"}">
+                <input type="checkbox"
+                       class="status-check buff-check"
+                       ${active ? "checked" : ""}
+                       onchange="toggleFighterBuff('${safeId}','${value}')"
+                       aria-label="${active ? "Buff appliqué, décocher pour retirer" : "Buff non appliqué, cocher pour appliquer"}">
+            </label>
+        </div>`;
+    }).join("");
+
+    const currentLabel = selected.length
+        ? selected.map(getBuffLabel).join(" · ")
+        : "— Aucun buff —";
+
+    return `<details class="status-multi buff-multi">
+        <summary>
+            <span class="status-summary-content">${escapeHtml(currentLabel)}</span>
+        </summary>
+        <div class="status-menu buff-menu">
+            <div class="status-menu-head">
+                <span>Buffs</span><span>Appliqué</span>
+            </div>
+            ${rows}
+        </div>
+    </details>`;
+}
+
 function clearFighterStatuses(fighterId) {
     const combat = getActiveCombat();
     if (!combat) return;
@@ -5355,6 +5472,17 @@ function renderFriseStatuses(fighter) {
     return `<div class="frise-statuses">${
         statuses.map(status =>
             `<span class="frise-status-badge">${escapeHtml(getStatusLabel(status))}</span>`
+        ).join("")
+    }</div>`;
+}
+
+function renderFriseBuffs(fighter) {
+    const buffs = [...new Set(getFighterBuffs(fighter).filter(Boolean))];
+    if (!buffs.length) return "";
+
+    return `<div class="frise-buffs">${
+        buffs.map(buff =>
+            `<span class="frise-buff-badge">${escapeHtml(getBuffLabel(buff))}</span>`
         ).join("")
     }</div>`;
 }
@@ -5483,6 +5611,7 @@ function renderCombatDisplayCard(fighter, index, combat) {
     }).join("");
 
     const friseStatuses = renderFriseStatuses(fighter);
+    const friseBuffs = renderFriseBuffs(fighter);
 
     const enemySide = fighter.type === "monster" || (fighter.type === "npc" && fighter.allegiance === "enemy");
     const isDead = ((fighter.type === "monster" || fighter.type === "npc") && hp <= 0) ||
@@ -5514,6 +5643,7 @@ function renderCombatDisplayCard(fighter, index, combat) {
             <div class="combat-display-name">${escapeHtml(fighter.name || "Sans nom")}</div>
             <div class="combat-display-hp">${hpSegments}</div>
             ${friseStatuses}
+            ${friseBuffs}
             ${renderDeathSavesFrise(fighter)}
         </article>
     `;
