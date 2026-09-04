@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>D&D Combat Tracker</title>
+<title>D&D Combat Tracker, By Vincent DARRAS</title>
 
 <style>
 
@@ -1460,6 +1460,200 @@ input:focus {
 .npc-ally-row { background: rgba(63,127,95,.22); }
 #npcAllegianceImport, #manualAllegianceImport { min-width: 125px; }
 
+
+/* =====================================================
+   BETA 1.0 — IDENTITÉ VISUELLE FANTASY ÉPIQUE
+   Couche graphique uniquement : aucune donnée/fonctionnalité modifiée.
+===================================================== */
+:root {
+    --fantasy-bg: #11100f;
+    --fantasy-panel: #1b1917;
+    --fantasy-panel-2: #211e1a;
+    --fantasy-border: #514735;
+    --fantasy-border-soft: #3a3328;
+    --fantasy-gold: #c8a85a;
+    --fantasy-gold-light: #e2c978;
+    --fantasy-text: #f1eadb;
+    --fantasy-muted: #aaa18f;
+    --fantasy-green: #467d5b;
+    --fantasy-red: #7d4444;
+    --fantasy-blue: #4e6686;
+}
+
+html { background: var(--fantasy-bg); }
+
+body {
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    background:
+        radial-gradient(circle at 50% -15%, rgba(200,168,90,.10), transparent 42%),
+        linear-gradient(180deg, #171512 0%, #100f0e 100%);
+    color: var(--fantasy-text);
+    letter-spacing: .05px;
+}
+
+header {
+    background:
+        linear-gradient(180deg, rgba(54,46,34,.96), rgba(29,26,22,.98)),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.018) 0 1px, transparent 1px 7px);
+    border-bottom: 1px solid #665638;
+    box-shadow: 0 3px 18px rgba(0,0,0,.42);
+}
+
+header h1,
+.page-header h2,
+.welcome h2,
+.card h3 {
+    color: #ead69a;
+    text-shadow: 0 1px 2px #000, 0 0 18px rgba(200,168,90,.10);
+}
+
+header p, .welcome p { color: var(--fantasy-muted); }
+
+.version {
+    color: #d4c18a;
+    background: #151310;
+    border-color: #5d5037;
+    box-shadow: inset 0 1px rgba(255,255,255,.04);
+}
+
+.navigation {
+    background: rgba(24,22,19,.97);
+    border-bottom: 1px solid var(--fantasy-border-soft);
+    box-shadow: 0 2px 12px rgba(0,0,0,.28);
+}
+
+.nav-button {
+    background: #29251f;
+    border: 1px solid #40382c;
+    border-radius: 6px;
+    color: #d8d0bf;
+    transition: background .15s, border-color .15s, transform .15s;
+}
+.nav-button:hover { background: #353027; border-color: #65563b; transform: translateY(-1px); }
+.nav-button.active {
+    background: linear-gradient(180deg, #5a4b30, #413725);
+    border-color: var(--fantasy-gold);
+    color: #fff3c8;
+    box-shadow: inset 0 1px rgba(255,255,255,.08), 0 0 12px rgba(200,168,90,.10);
+}
+
+main { padding: 28px 30px 40px; }
+
+.card,
+.player-card,
+.combat-card,
+.group-card,
+.monster-card,
+.npc-card,
+.modal-content,
+.combat-import-panel {
+    background: linear-gradient(145deg, rgba(36,32,27,.98), rgba(25,23,20,.98));
+    border-color: var(--fantasy-border-soft);
+    box-shadow: 0 8px 24px rgba(0,0,0,.20), inset 0 1px rgba(255,255,255,.025);
+}
+
+.card { border-radius: 8px; }
+.card:hover {
+    transform: translateY(-2px);
+    border-color: #78653e;
+    box-shadow: 0 10px 26px rgba(0,0,0,.28), 0 0 16px rgba(200,168,90,.06);
+}
+
+.primary-button {
+    background: linear-gradient(180deg, #4f8a64, #38684c);
+    border: 1px solid #5d9770;
+    border-radius: 6px;
+    box-shadow: inset 0 1px rgba(255,255,255,.08), 0 2px 5px rgba(0,0,0,.22);
+}
+.primary-button:hover { background: linear-gradient(180deg, #5b9a70, #407758); }
+
+.secondary-button {
+    background: linear-gradient(180deg, #403a31, #302c26);
+    border: 1px solid #574d3d;
+    border-radius: 6px;
+    color: #e5dece;
+}
+.secondary-button:hover { background: #4a4338; border-color: #756444; }
+
+.edit-button { background: #38342d; border: 1px solid #50483b; }
+.delete-button { background: #623c3c; border: 1px solid #7b4b4b; }
+
+input, select, textarea {
+    background: #151412;
+    color: #eee7d8;
+    border-color: #4a4235;
+    border-radius: 6px;
+}
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--fantasy-gold);
+    box-shadow: 0 0 0 2px rgba(200,168,90,.10);
+}
+
+label, .stat-label, .combat-import-label { color: #aaa18f; }
+
+.portrait,
+.portrait-placeholder {
+    border-color: #806b42;
+    box-shadow: 0 0 0 2px #211d17, 0 0 0 3px #55472f;
+}
+
+.combat-import-panel {
+    border-color: #4d4231;
+    box-shadow: inset 0 1px rgba(255,255,255,.025), 0 5px 18px rgba(0,0,0,.22);
+}
+.combat-import-row { border-bottom-color: #383128; }
+.combat-import-row:last-child { border-bottom-color: transparent; }
+
+.modal {
+    background: rgba(5,5,4,.78);
+    backdrop-filter: blur(3px);
+}
+.modal-content {
+    border-color: #6b5938;
+    box-shadow: 0 18px 55px rgba(0,0,0,.62), 0 0 30px rgba(200,168,90,.07);
+}
+.modal-header { border-bottom-color: #40382c; }
+.close-button { color: #cdbb8a; }
+
+.dice-button {
+    background: linear-gradient(180deg, #51452f, #392f21);
+    border: 1px solid #77633e;
+    color: #f0d98f;
+    box-shadow: inset 0 1px rgba(255,255,255,.07);
+}
+.dice-button:hover { background: #625337; }
+
+/* Titres de sections : petite ligne dorée façon grimoire */
+.section-title,
+.page-header {
+    position: relative;
+}
+.page-header::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -10px;
+    width: 110px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--fantasy-gold), transparent);
+}
+
+/* Barre de PV : plus dense et plus lisible */
+.hp-bar,
+.health-bar {
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.55);
+}
+
+button:active { transform: translateY(1px); }
+
+@media (max-width: 800px) {
+    header { padding: 16px 18px; }
+    main { padding: 20px 16px 30px; }
+    .navigation { padding: 10px 12px; overflow-x: auto; }
+    .nav-button { white-space: nowrap; padding: 10px 16px; }
+}
+
 </style>
 </head>
 
@@ -2065,7 +2259,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "ALPHA 1.12";
+const APP_VERSION = "BETA 1.0";
 
 
 /* =====================================================
