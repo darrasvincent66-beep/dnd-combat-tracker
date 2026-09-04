@@ -315,6 +315,34 @@ button {
     background: #7a4646;
 }
 
+
+.group-member-row {
+display:flex;
+align-items:center;
+gap:12px;
+padding:10px 12px;
+margin-bottom:8px;
+background:#303030;
+border-radius:8px;
+border:1px solid #444;
+}
+.group-member-row input[type="checkbox"] {
+width:18px;
+height:18px;
+}
+.group-member-row .group-member-info {
+flex:1;
+}
+.group-count {
+color:#aaa;
+font-size:14px;
+}
+.group-card-actions {
+display:flex;
+gap:10px;
+padding:15px;
+border-top:1px solid #3d3d3d;
+}
 .empty-state {
     background: #242424;
     border: 1px solid #3d3d3d;
@@ -608,6 +636,11 @@ input:focus {
             </p>
 
         </div>
+<div class="card" onclick="openPlayerGroups()">
+<h3>👥 Groupes de joueurs</h3>
+<p>Créer des groupes de joueurs prêts à être importés dans un combat.</p>
+</div>
+
 
     </div>
 
@@ -679,6 +712,47 @@ input:focus {
 <!-- =========================
      COMBATS
 ========================= -->
+
+
+<section id="playerGroups" class="page">
+<div class="page-header">
+<h2>👥 Groupes de joueurs</h2>
+<button class="primary-button" onclick="openPlayerGroupForm()">➕ Nouveau groupe</button>
+</div>
+<div id="playerGroupsList"></div>
+<br>
+<button class="secondary-button" onclick="backToLibrary()">← Retour à la bibliothèque</button>
+</section>
+
+<section id="monsterGroups" class="page">
+<div class="page-header">
+<h2>👹👹 Groupes de monstres</h2>
+<button class="primary-button" onclick="openMonsterGroupForm()">➕ Nouveau groupe</button>
+</div>
+<div id="monsterGroupsList"></div>
+<br>
+<button class="secondary-button" onclick="backToLibrary()">← Retour à la bibliothèque</button>
+</section>
+
+<div id="groupModal" class="modal">
+<div class="modal-content">
+<div class="modal-header">
+<h2 id="groupModalTitle">Nouveau groupe</h2>
+<button type="button" class="close-button" onclick="closeGroupForm()">×</button>
+</div>
+<form id="groupForm">
+<div class="form-group">
+<label>Nom du groupe</label>
+<input id="groupName" type="text" required placeholder="Ex. Groupe Vincent">
+</div>
+<div id="groupMembers" style="margin-top:20px;"></div>
+<div class="form-actions">
+<button type="button" class="secondary-button" onclick="closeGroupForm()">Annuler</button>
+<button type="submit" class="primary-button">💾 Enregistrer</button>
+</div>
+</form>
+</div>
+</div>
 
 <section id="combat" class="page">
 
@@ -947,7 +1021,7 @@ input:focus {
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "V0.5";
+const APP_VERSION = "V0.6";
 
 const PLAYER_STORAGE_KEY = "dnd_players";
 
@@ -2455,10 +2529,266 @@ function escapeHtml(value) {
    INITIALISATION
 ===================================================== */
 
+
+/* =====================================================
+   GROUPES
+===================================================== */
+
+const PLAYER_GROUP_STORAGE_KEY = "dnd_player_groups";
+const MONSTER_GROUP_STORAGE_KEY = "dnd_monster_groups";
+
+let playerGroups = [];
+let monsterGroups = [];
+let editingGroupId = null;
+let editingGroupType = null;
+
+function loadGroups() {
+    try {
+        const pg = localStorage.getItem(PLAYER_GROUP_STORAGE_KEY);
+        const mg = localStorage.getItem(MONSTER_GROUP_STORAGE_KEY);
+        playerGroups = pg ? JSON.parse(pg) : [];
+        monsterGroups = mg ? JSON.parse(mg) : [];
+        if (!Array.isArray(playerGroups)) playerGroups = [];
+        if (!Array.isArray(monsterGroups)) monsterGroups = [];
+    } catch (error) {
+        console.error("Erreur de chargement des groupes :", error);
+        playerGroups = [];
+        monsterGroups = [];
+    }
+}
+
+function saveGroups() {
+    try {
+        localStorage.setItem(PLAYER_GROUP_STORAGE_KEY, JSON.stringify(playerGroups));
+        localStorage.setItem(MONSTER_GROUP_STORAGE_KEY, JSON.stringify(monsterGroups));
+        return true;
+    } catch (error) {
+        console.error("Erreur de sauvegarde des groupes :", error);
+        alert("Impossible de sauvegarder les groupes.");
+        return false;
+    }
+}
+
+function openPlayerGroups() {
+    showPage("playerGroups");
+    renderPlayerGroups();
+}
+
+function openMonsterGroups() {
+    showPage("monsterGroups");
+    renderMonsterGroups();
+}
+
+function openPlayerGroupForm(groupId = null) {
+    editingGroupId = groupId;
+    editingGroupType = "players";
+    document.getElementById("groupForm").reset();
+    document.getElementById("groupModalTitle").textContent =
+        groupId === null ? "Nouveau groupe de joueurs" : "Modifier le groupe de joueurs";
+
+    const group = groupId === null ? null : playerGroups.find(g => g.id === groupId);
+    document.getElementById("groupName").value = group ? group.name : "";
+    renderGroupMembers("players", group ? group.members : []);
+    document.getElementById("groupModal").classList.add("active");
+}
+
+function openMonsterGroupForm(groupId = null) {
+    editingGroupId = groupId;
+    editingGroupType = "monsters";
+    document.getElementById("groupForm").reset();
+    document.getElementById("groupModalTitle").textContent =
+        groupId === null ? "Nouveau groupe de monstres" : "Modifier le groupe de monstres";
+
+    const group = groupId === null ? null : monsterGroups.find(g => g.id === groupId);
+    document.getElementById("groupName").value = group ? group.name : "";
+    renderGroupMembers("monsters", group ? group.members : []);
+    document.getElementById("groupModal").classList.add("active");
+}
+
+function closeGroupForm() {
+    document.getElementById("groupModal").classList.remove("active");
+    editingGroupId = null;
+    editingGroupType = null;
+}
+
+function renderGroupMembers(type, selectedIds) {
+    const container = document.getElementById("groupMembers");
+    const source = type === "players" ? players : monsters;
+
+    if (!source.length) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <h3>${type === "players" ? "👤 Aucun joueur" : "👹 Aucun monstre"}</h3>
+                <p>Crée d'abord des éléments dans la bibliothèque.</p>
+            </div>`;
+        return;
+    }
+
+    const selected = new Set(selectedIds || []);
+    container.innerHTML = `
+        <label style="display:block;margin-bottom:10px;">
+            ${type === "players" ? "Sélectionne les joueurs du groupe :" : "Sélectionne les monstres du groupe :"}
+        </label>
+        ${source.map(item => {
+            const id = String(item.id);
+            const label = type === "players" ? item.characterName : item.name;
+            return `
+                <label class="group-member-row">
+                    <input type="checkbox" name="groupMember" value="${escapeHtml(id)}" ${selected.has(item.id) || selected.has(id) ? "checked" : ""}>
+                    <span class="group-member-info">${escapeHtml(label)}</span>
+                </label>`;
+        }).join("")}
+    `;
+}
+
+document.getElementById("groupForm").addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    const name = document.getElementById("groupName").value.trim();
+    if (!name) {
+        alert("Le nom du groupe est obligatoire.");
+        return;
+    }
+
+    const memberIds = Array.from(
+        document.querySelectorAll('input[name="groupMember"]:checked')
+    ).map(input => {
+        const raw = input.value;
+        const n = Number(raw);
+        return Number.isNaN(n) ? raw : n;
+    });
+
+    if (!memberIds.length) {
+        alert("Sélectionne au moins un élément dans le groupe.");
+        return;
+    }
+
+    const collection = editingGroupType === "players" ? playerGroups : monsterGroups;
+    const existing = editingGroupId === null
+        ? null
+        : collection.find(g => g.id === editingGroupId);
+
+    const data = {
+        id: existing ? existing.id : Date.now() + Math.random(),
+        name,
+        members: memberIds
+    };
+
+    if (existing) {
+        Object.assign(existing, data);
+    } else {
+        collection.push(data);
+    }
+
+    if (saveGroups()) {
+        closeGroupForm();
+        if (editingGroupType === "players") renderPlayerGroups();
+        else renderMonsterGroups();
+    }
+});
+
+function renderPlayerGroups() {
+    const container = document.getElementById("playerGroupsList");
+
+    if (!playerGroups.length) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <h3>👥 Aucun groupe de joueurs</h3>
+                <p>Crée ton premier groupe à partir des joueurs déjà enregistrés.</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = `<div class="players-list">
+        ${playerGroups.map(group => {
+            const names = group.members.map(id => {
+                const p = players.find(x => x.id === id);
+                return p ? p.characterName : "(joueur supprimé)";
+            });
+            return `
+                <div class="player-card">
+                    <div class="player-top">
+                        <div class="portrait-placeholder">👥</div>
+                        <div>
+                            <div class="player-name">${escapeHtml(group.name)}</div>
+                            <div class="player-owner">${group.members.length} joueur(s)</div>
+                        </div>
+                    </div>
+                    <div style="padding:15px;border-bottom:1px solid #3d3d3d;color:#ccc;">
+                        ${names.map(escapeHtml).join(" • ")}
+                    </div>
+                    <div class="group-card-actions">
+                        <button class="edit-button" onclick="openPlayerGroupForm(${group.id})">✏️ Modifier</button>
+                        <button class="delete-button" onclick="deleteGroup('players', ${group.id})">🗑️ Supprimer</button>
+                    </div>
+                </div>`;
+        }).join("")}
+    </div>`;
+}
+
+function renderMonsterGroups() {
+    const container = document.getElementById("monsterGroupsList");
+
+    if (!monsterGroups.length) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <h3>👹👹 Aucun groupe de monstres</h3>
+                <p>Crée ton premier groupe à partir des monstres déjà enregistrés.</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = `<div class="players-list">
+        ${monsterGroups.map(group => {
+            const names = group.members.map(id => {
+                const m = monsters.find(x => x.id === id);
+                return m ? m.name : "(monstre supprimé)";
+            });
+            return `
+                <div class="player-card">
+                    <div class="player-top">
+                        <div class="portrait-placeholder">👹</div>
+                        <div>
+                            <div class="player-name">${escapeHtml(group.name)}</div>
+                            <div class="player-owner">${group.members.length} monstre(s)</div>
+                        </div>
+                    </div>
+                    <div style="padding:15px;border-bottom:1px solid #3d3d3d;color:#ccc;">
+                        ${names.map(escapeHtml).join(" • ")}
+                    </div>
+                    <div class="group-card-actions">
+                        <button class="edit-button" onclick="openMonsterGroupForm(${group.id})">✏️ Modifier</button>
+                        <button class="delete-button" onclick="deleteGroup('monsters', ${group.id})">🗑️ Supprimer</button>
+                    </div>
+                </div>`;
+        }).join("")}
+    </div>`;
+}
+
+function deleteGroup(type, groupId) {
+    const collection = type === "players" ? playerGroups : monsterGroups;
+    const group = collection.find(g => g.id === groupId);
+    if (!group) return;
+
+    if (!confirm(`Supprimer "${group.name}" ?`)) return;
+
+    if (type === "players") {
+        playerGroups = playerGroups.filter(g => g.id !== groupId);
+        renderPlayerGroups();
+    } else {
+        monsterGroups = monsterGroups.filter(g => g.id !== groupId);
+        renderMonsterGroups();
+    }
+    saveGroups();
+}
+
+
 async function initializeApp() {
 
     loadPlayers();
     loadMonsters();
+
+    loadGroups();
 
 
     /*
