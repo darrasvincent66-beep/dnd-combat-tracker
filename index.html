@@ -1690,7 +1690,7 @@ input:focus, select:focus, textarea:focus {
     box-shadow: 0 0 0 2px rgba(200,168,90,.10);
 }
 
-/* BETA 1.25 — rendu fiable des listes FP */
+/* BETA 1.26 — rendu fiable des listes FP */
 #npcCR, #monsterCR {
     color: #eee7d8;
     background-color: #151412;
@@ -2181,7 +2181,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.25
+        BETA 1.26
     </div>
 
 </header>
@@ -2709,7 +2709,7 @@ button:active { transform: translateY(1px); }
                 <div class="form-group">
                     <label>Facteur de Puissance (FP)</label>
                     <select id="npcCR" onchange="updateNPCXPPreview()">
-                        ${getCRSelectOptions()}
+                        <option value="">Sélectionner…</option><option value="0">FP 0 — 10 XP</option><option value="1/8">FP 1/8 — 25 XP</option><option value="1/4">FP 1/4 — 50 XP</option><option value="1/2">FP 1/2 — 100 XP</option><option value="1">FP 1 — 200 XP</option><option value="2">FP 2 — 450 XP</option><option value="3">FP 3 — 700 XP</option><option value="4">FP 4 — 1 100 XP</option><option value="5">FP 5 — 1 800 XP</option><option value="6">FP 6 — 2 300 XP</option><option value="7">FP 7 — 2 900 XP</option><option value="8">FP 8 — 3 900 XP</option><option value="9">FP 9 — 5 000 XP</option><option value="10">FP 10 — 5 900 XP</option><option value="11">FP 11 — 7 200 XP</option><option value="12">FP 12 — 8 400 XP</option><option value="13">FP 13 — 10 000 XP</option><option value="14">FP 14 — 11 500 XP</option><option value="15">FP 15 — 13 000 XP</option><option value="16">FP 16 — 15 000 XP</option><option value="17">FP 17 — 18 000 XP</option><option value="18">FP 18 — 20 000 XP</option><option value="19">FP 19 — 22 000 XP</option><option value="20">FP 20 — 25 000 XP</option><option value="21">FP 21 — 33 000 XP</option><option value="22">FP 22 — 41 000 XP</option><option value="23">FP 23 — 50 000 XP</option><option value="24">FP 24 — 62 000 XP</option><option value="25">FP 25 — 75 000 XP</option><option value="26">FP 26 — 90 000 XP</option><option value="27">FP 27 — 105 000 XP</option><option value="28">FP 28 — 120 000 XP</option><option value="29">FP 29 — 135 000 XP</option><option value="30">FP 30 — 155 000 XP</option>
                     </select>
                 </div>
 
@@ -2783,7 +2783,7 @@ button:active { transform: translateY(1px); }
                 <div class="form-group">
                     <label>Facteur de Puissance (FP)</label>
                     <select id="monsterCR" onchange="updateMonsterXPPreview()">
-                        ${getCRSelectOptions()}
+                        <option value="">Sélectionner…</option><option value="0">FP 0 — 10 XP</option><option value="1/8">FP 1/8 — 25 XP</option><option value="1/4">FP 1/4 — 50 XP</option><option value="1/2">FP 1/2 — 100 XP</option><option value="1">FP 1 — 200 XP</option><option value="2">FP 2 — 450 XP</option><option value="3">FP 3 — 700 XP</option><option value="4">FP 4 — 1 100 XP</option><option value="5">FP 5 — 1 800 XP</option><option value="6">FP 6 — 2 300 XP</option><option value="7">FP 7 — 2 900 XP</option><option value="8">FP 8 — 3 900 XP</option><option value="9">FP 9 — 5 000 XP</option><option value="10">FP 10 — 5 900 XP</option><option value="11">FP 11 — 7 200 XP</option><option value="12">FP 12 — 8 400 XP</option><option value="13">FP 13 — 10 000 XP</option><option value="14">FP 14 — 11 500 XP</option><option value="15">FP 15 — 13 000 XP</option><option value="16">FP 16 — 15 000 XP</option><option value="17">FP 17 — 18 000 XP</option><option value="18">FP 18 — 20 000 XP</option><option value="19">FP 19 — 22 000 XP</option><option value="20">FP 20 — 25 000 XP</option><option value="21">FP 21 — 33 000 XP</option><option value="22">FP 22 — 41 000 XP</option><option value="23">FP 23 — 50 000 XP</option><option value="24">FP 24 — 62 000 XP</option><option value="25">FP 25 — 75 000 XP</option><option value="26">FP 26 — 90 000 XP</option><option value="27">FP 27 — 105 000 XP</option><option value="28">FP 28 — 120 000 XP</option><option value="29">FP 29 — 135 000 XP</option><option value="30">FP 30 — 155 000 XP</option>
                     </select>
                 </div>
 
@@ -2815,7 +2815,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.25";
+const APP_VERSION = "BETA 1.26";
 
 // Facteur de Puissance (FP/CR) → XP selon la table D&D 5e.
 // FP 0 est traité à 10 XP (les règles prévoient 0 ou 10 XP selon la créature).
