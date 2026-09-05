@@ -574,10 +574,12 @@ color:#aaa;
     margin:0;
 }
 .combat-import-toggle {
-    flex:0 0 28px;
+    flex:0 0 auto;
     align-self:center;
-    width:28px;
-    height:54px;
+    min-width:54px;
+    width:auto;
+    height:42px;
+    padding:0 12px;
     padding:0;
     margin-left:-1px;
     border:1px solid #514b40;
@@ -585,8 +587,9 @@ color:#aaa;
     border-radius:0 8px 8px 0;
     background:linear-gradient(180deg,#4a4844,#343330);
     color:#e0c67f;
-    font-size:20px;
+    font-size:14px;
     font-weight:700;
+    white-space:nowrap;
     cursor:pointer;
     box-shadow:0 4px 12px rgba(0,0,0,.18);
 }
@@ -601,7 +604,7 @@ color:#aaa;
 }
 @media (max-width:560px) {
     .combat-import-shell { align-items:flex-start; }
-    .combat-import-toggle { flex-basis:26px; width:26px; }
+    .combat-import-toggle { min-width:48px; width:auto; padding:0 9px; font-size:13px; }
 }
 .combat-post-import-actions {
     display:flex;
@@ -1963,7 +1966,7 @@ button:active { transform: translateY(1px); }
 
 
 /* =====================================================
-   BETA 1.12 — BOUTON PLEIN ÉCRAN
+   BETA 1.13 — AJOUT COMBATTANT REPLIABLE
    Couche visuelle/animation uniquement.
    ===================================================== */
 .combat-display-body {
@@ -2712,7 +2715,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.12";
+const APP_VERSION = "BETA 1.13";
 
 
 /* =====================================================
@@ -5398,7 +5401,7 @@ function renderCombatWorkspace(combat) {
             <button class="combat-import-toggle" type="button"
                     onclick="toggleCombatImportPanel()"
                     title="${combat.importPanelCollapsed === false ? "Réduire le panneau d'importation" : "Afficher le panneau d'importation"}"
-                    aria-label="${combat.importPanelCollapsed === false ? "Réduire le panneau d'importation" : "Afficher le panneau d'importation"}">${combat.importPanelCollapsed === false ? "<" : ">"}</button>
+                    aria-label="${combat.importPanelCollapsed === false ? "Réduire le panneau d'importation" : "Afficher le panneau d'importation"}">${combat.importPanelCollapsed === false ? "▲" : "Ajout combattant ▼"}</button>
         </div>
 
         <div class="combat-post-import-actions">
