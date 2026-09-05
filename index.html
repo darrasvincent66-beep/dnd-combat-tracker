@@ -1690,7 +1690,7 @@ input:focus, select:focus, textarea:focus {
     box-shadow: 0 0 0 2px rgba(200,168,90,.10);
 }
 
-/* BETA 1.26 — rendu fiable des listes FP */
+/* BETA 1.27 — rendu fiable des listes FP */
 #npcCR, #monsterCR {
     color: #eee7d8;
     background-color: #151412;
@@ -2181,7 +2181,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.26
+        BETA 1.27
     </div>
 
 </header>
@@ -2815,7 +2815,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.26";
+const APP_VERSION = "BETA 1.27";
 
 // Facteur de Puissance (FP/CR) → XP selon la table D&D 5e.
 // FP 0 est traité à 10 XP (les règles prévoient 0 ou 10 XP selon la créature).
@@ -5451,7 +5451,19 @@ function saveCombatStatsHistory() {
     return guardedSave(COMBAT_STATS_HISTORY_KEY, combatStatsHistory);
 }
 
+function calculateCombatXP(combat) {
+    const fighters = Array.isArray(combat && combat.fighters) ? combat.fighters : [];
+    // L'XP ne provient que des monstres effectivement tués (HP <= 0).
+    const totalXP = fighters.reduce((total, fighter) => {
+        if (fighter.type !== "monster" || Number(fighter.hp) > 0) return total;
+        return total + (Number(fighter.xp ?? getCRXP(fighter.cr || "")) || 0);
+    }, 0);
+    const playerCount = fighters.filter(f => f.type === "player").length;
+    return { totalXP, playerCount, xpPerPlayer: playerCount > 0 ? Math.floor(totalXP / playerCount) : 0 };
+}
+
 function buildCombatStatsRecord(combat) {
+    const xp = calculateCombatXP(combat);
     return {
         id: combat.id,
         name: combat.name || "Combat sans nom",
@@ -5463,9 +5475,13 @@ function buildCombatStatsRecord(combat) {
         combatEnded: !!combat.combatEnded,
         statsResult: combat.statsResult || "",
         currentTurn: Math.max(1, Number(combat.currentTurn) || 1),
+        playerCount: xp.playerCount,
+        totalXP: xp.totalXP,
+        xpPerPlayer: xp.xpPerPlayer,
         fighters: (combat.fighters || []).map(f => ({
             id: f.id, name: f.name || "Sans nom", type: f.type,
-            allegiance: f.allegiance, hp: Number(f.hp) || 0
+            allegiance: f.allegiance, hp: Number(f.hp) || 0,
+            xp: Number(f.xp ?? getCRXP(f.cr || "")) || 0
         })),
         statsLog: Array.isArray(combat.statsLog) ? combat.statsLog.map(e => ({ ...e })) : []
     };
@@ -7289,6 +7305,9 @@ function renderStats() {
     const rows = ordered.map(combat => {
         const state = getCombatStatsState(combat);
         const details = getCombatStatsRows(combat);
+        const playerCount = Number(combat.playerCount) || 0;
+        const totalXP = Number(combat.totalXP) || 0;
+        const xpPerPlayer = Number(combat.xpPerPlayer) || 0;
         const detailRows = details.length
             ? details.map(item => `<tr><td>${escapeHtml(item.name)}</td><td class="stats-damage">${item.damage}</td><td class="stats-heal">${item.healing}</td></tr>`).join("")
             : `<tr><td colspan="3">Aucune variation de PV enregistrée.</td></tr>`;
@@ -7299,12 +7318,16 @@ function renderStats() {
                 <td>${formatStatsTime(combat.statsStartedAt)}</td>
                 <td>${formatCombatElapsed(getCombatElapsedMs(combat))}</td>
                 <td>${Math.max(0, Number(combat.currentTurn) || 1)}</td>
+                <td>${playerCount}</td>
+                <td>${totalXP.toLocaleString("fr-FR")} XP</td>
+                <td>${xpPerPlayer.toLocaleString("fr-FR")} XP</td>
                 <td><span class="stats-state ${state.key}">${state.icon} ${state.label}</span></td>
                 <td class="stats-actions"><button type="button" class="stats-delete-button" title="Supprimer ce rapport" aria-label="Supprimer ce rapport" onclick="event.stopPropagation(); deleteStatsReport('${String(combat.id).replace(/'/g,"\'")}')">🗑️</button></td>
             </tr>
             <tr id="stats-detail-${String(combat.id)}" class="stats-detail-row" hidden>
-                <td colspan="7">
+                <td colspan="10">
                     <div class="stats-detail-title">${escapeHtml(combat.name || "Combat sans nom")} — rapport détaillé</div>
+                    <div class="stats-detail-title">⭐ XP totale : ${totalXP.toLocaleString("fr-FR")} XP · 👥 ${playerCount} joueur${playerCount > 1 ? "s" : ""} · 🎁 ${xpPerPlayer.toLocaleString("fr-FR")} XP / joueur</div>
                     <table class="stats-detail-table">
                         <thead><tr><th>Combattant</th><th>Dégâts infligés</th><th>Soins</th></tr></thead>
                         <tbody>${detailRows}</tbody>
@@ -7316,7 +7339,7 @@ function renderStats() {
     container.innerHTML = `
         <div class="stats-table-wrap">
             <table class="stats-table">
-                <thead><tr><th>Combat</th><th>Date</th><th>Heure</th><th>Durée</th><th>Tours</th><th>État</th><th></th></tr></thead>
+                <thead><tr><th>Combat</th><th>Date</th><th>Heure</th><th>Durée</th><th>Tours</th><th>Nbr joueurs</th><th>XP totale</th><th>XP par joueur</th><th>État</th><th></th></tr></thead>
                 <tbody>${rows}</tbody>
             </table>
         </div>`;
