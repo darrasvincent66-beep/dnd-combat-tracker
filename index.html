@@ -2166,7 +2166,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.16
+        BETA 1.17
     </div>
 
 </header>
@@ -2776,7 +2776,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.16";
+const APP_VERSION = "BETA 1.17";
 
 
 /* =====================================================
@@ -5681,13 +5681,20 @@ function addManualFighter() {
 }
 
 function logCombatHpChange(combat, targetIndex, oldHp, newHp) {
-    if (!combat || !combat.displayStarted) return;
+    // Le journal ne doit enregistrer que les variations effectuées
+    // pendant un combat réellement lancé. On ne dépend pas de
+    // l'état de la fenêtre secondaire : le MJ peut modifier les PV
+    // depuis l'écran principal.
+    if (!combat || !combat.statsStartedAt || combat.combatEnded) return;
     if (!Array.isArray(combat.statsLog)) combat.statsLog = [];
-    const delta = Number(newHp) - Number(oldHp);
+
+    const before = Number(oldHp);
+    const after = Number(newHp);
+    const delta = after - before;
     if (!Number.isFinite(delta) || delta === 0) return;
 
     const sourceIndex = Number(combat.currentIndex);
-    const source = Number.isFinite(sourceIndex) && combat.fighters[sourceIndex]
+    const source = Number.isInteger(sourceIndex) && combat.fighters[sourceIndex]
         ? combat.fighters[sourceIndex]
         : null;
     const target = combat.fighters[targetIndex];
@@ -5696,7 +5703,7 @@ function logCombatHpChange(combat, targetIndex, oldHp, newHp) {
     combat.statsLog.push({
         id: Date.now() + Math.random(),
         at: new Date().toISOString(),
-        turn: Number(combat.currentTurn) || 1,
+        turn: Math.max(1, Number(combat.currentTurn) || 1),
         sourceId: source.id,
         sourceName: source.name || "Sans nom",
         targetId: target.id,
@@ -6802,6 +6809,14 @@ function endCombatDisplay() {
     const combat = combats.find(c => c.id === combatDisplayCombatId);
     if (!combat) return;
 
+    // Détermine le résultat AVANT de clôturer le combat.
+    // La règle reste volontairement simple : tous les ennemis morts = gagné,
+    // tous les joueurs hors combat = perdu. Si les deux camps sont encore
+    // vivants, on ne force pas artificiellement un résultat.
+    const result = getCombatResultMessage(combat);
+    if (result && result.title.includes("VICTOIRE")) combat.statsResult = "won";
+    else if (result && result.title.includes("GAME OVER")) combat.statsResult = "lost";
+
     combat.displayElapsedMs = getCombatElapsedMs(combat);
     combat.displayStartedAt = null;
     combat.displayStarted = false;
@@ -6814,6 +6829,7 @@ function endCombatDisplay() {
     }
 
     renderCombats();
+    renderStats();
 }
 
 function combatDisplayNext() {
@@ -6919,17 +6935,40 @@ function getCombatStatsState(combat) {
 }
 
 function getCombatStatsRows(combat) {
-    const byId = new Map((combat.fighters || []).map(f => [String(f.id), f]));
-    const totals = new Map();
+    // Le rapport doit présenter tous les combattants du combat, même
+    // lorsqu'ils n'ont encore infligé aucun dégât ni soin.
+    const fighters = Array.isArray(combat.fighters) ? combat.fighters : [];
+    const totals = new Map(
+        fighters.map(fighter => [
+            String(fighter.id),
+            {
+                name: fighter.name || "Sans nom",
+                damage: 0,
+                healing: 0
+            }
+        ])
+    );
+
     (combat.statsLog || []).forEach(entry => {
         const key = String(entry.sourceId);
-        if (!totals.has(key)) totals.set(key, { name: entry.sourceName || "Sans nom", damage:0, healing:0 });
+        if (!totals.has(key)) {
+            totals.set(key, {
+                name: entry.sourceName || "Sans nom",
+                damage: 0,
+                healing: 0
+            });
+        }
+
         const row = totals.get(key);
         const delta = Number(entry.delta) || 0;
         if (delta < 0) row.damage += Math.abs(delta);
         if (delta > 0) row.healing += delta;
     });
-    return Array.from(totals.entries()).map(([id,row]) => ({ id, fighter:byId.get(id), ...row }));
+
+    return Array.from(totals.entries()).map(([id, row]) => ({
+        id,
+        ...row
+    }));
 }
 
 function toggleStatsDetail(id) {
