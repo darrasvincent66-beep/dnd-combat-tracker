@@ -1690,7 +1690,7 @@ input:focus, select:focus, textarea:focus {
     box-shadow: 0 0 0 2px rgba(200,168,90,.10);
 }
 
-/* BETA 1.27 — rendu fiable des listes FP */
+/* BETA 1.28 — rendu fiable des listes FP */
 #npcCR, #monsterCR {
     color: #eee7d8;
     background-color: #151412;
@@ -2166,6 +2166,7 @@ button:active { transform: translateY(1px); }
 .stats-damage{color:#e07171;font-weight:700;}
 .stats-heal{color:#72d38a;font-weight:700;}
 .stats-empty{padding:30px;text-align:center;color:#999;background:#242424;border:1px solid #3d3d3d;border-radius:12px;}
+.official-source-note{font-size:12px;color:#9f9788;margin-top:8px}.official-monsters-table{width:100%;border-collapse:collapse;background:rgba(24,23,21,.92);border:1px solid #403b33}.official-monsters-table th,.official-monsters-table td{padding:9px 10px;border-bottom:1px solid #39352f;text-align:left}.official-monsters-table th{color:#e0c98e;background:#2a2926;font-size:12px;position:sticky;top:0;z-index:1}.official-monsters-table td{font-size:13px}.official-monsters-table tr:hover{background:rgba(255,255,255,.035)}.official-monsters-actions{display:flex;gap:6px;flex-wrap:wrap}.official-monsters-search{margin:12px 0;display:flex;gap:10px;align-items:center}.official-monsters-search input{flex:1;min-width:220px}.official-readonly-badge{display:inline-block;padding:3px 7px;border-radius:999px;background:#403a2f;color:#d8c79c;font-size:11px}
 </style>
 </head>
 
@@ -2304,6 +2305,11 @@ button:active { transform: translateY(1px); }
         </div>
 
 
+        <div class="card" onclick="openOfficialMonsters()">
+            <h3>📜 Monstres officiels</h3>
+            <p>Les 330 créatures du SRD 5.2.1, en lecture seule.</p>
+        </div>
+
         <div
             class="card"
             onclick="openMonsterGroups()">
@@ -2407,6 +2413,18 @@ button:active { transform: translateY(1px); }
 
 </section>
 
+
+<!-- =========================
+     MONSTRES OFFICIELS SRD 5.2.1
+========================= -->
+<section id="officialMonsters" class="page">
+  <div class="page-header">
+    <div><h2>📜 Monstres officiels — SRD 5.2.1</h2><div style="color:#aaa;font-size:13px;">330 créatures · lecture seule</div></div>
+    <button class="secondary-button" onclick="backToLibrary()">← Bibliothèque</button>
+  </div>
+  <div id="officialMonstersStatus" class="stats-empty">Chargement de la base officielle…</div>
+  <div id="officialMonstersList"></div>
+</section>
 
 <!-- =========================
      COMBATS
@@ -2815,7 +2833,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.27";
+const APP_VERSION = "BETA 1.28";
 
 // Facteur de Puissance (FP/CR) → XP selon la table D&D 5e.
 // FP 0 est traité à 10 XP (les règles prévoient 0 ou 10 XP selon la créature).
@@ -7395,6 +7413,21 @@ async function initializeApp() {
 
 initializeApp();
 
+
+/* =====================================================
+   BIBLIOTHÈQUE OFFICIELLE — SRD 5.2.1
+===================================================== */
+const OFFICIAL_MONSTERS_URL = "https://raw.githubusercontent.com/rschaeff/srd/master/monsters.json";
+const OFFICIAL_MONSTERS_CACHE_KEY = "dnd_official_monsters_srd_5_2_1";
+let officialMonsters = [];
+function normalizeOfficialMonster(raw){return {id:"official_"+String(raw.name||"").toLowerCase().replace(/[^a-z0-9]+/gi,"-").replace(/^-|-$/g,""),name:raw.name||"Créature sans nom",ac:Number(raw.ac)||0,hp:Number(raw.hp?.average)||0,hpFormula:String(raw.hp?.dice||""),cr:String(raw.cr_string??raw.cr??""),xp:Number(raw.xp)||getCRXP(String(raw.cr_string??raw.cr??"")),initiativeModifier:Number(raw.initiative?.modifier??0)||0,size:raw.size||"",type:raw.type||"",alignment:raw.alignment||"",source:"SRD 5.2.1"};}
+function loadOfficialMonsterCache(){try{const saved=localStorage.getItem(OFFICIAL_MONSTERS_CACHE_KEY);const parsed=saved?JSON.parse(saved):[];officialMonsters=Array.isArray(parsed)?parsed:[]}catch(e){officialMonsters=[]}}
+function saveOfficialMonsterCache(){try{localStorage.setItem(OFFICIAL_MONSTERS_CACHE_KEY,JSON.stringify(officialMonsters))}catch(e){console.error(e)}}
+async function ensureOfficialMonstersLoaded(){if(officialMonsters.length===330)return officialMonsters;const status=document.getElementById("officialMonstersStatus");if(status)status.textContent="Téléchargement de la base officielle SRD 5.2.1…";const response=await fetch(OFFICIAL_MONSTERS_URL,{cache:"no-store"});if(!response.ok)throw new Error("HTTP "+response.status);const raw=await response.json();if(!Array.isArray(raw)||raw.length!==330)throw new Error("La source n’a pas renvoyé exactement 330 créatures.");officialMonsters=raw.map(normalizeOfficialMonster);saveOfficialMonsterCache();return officialMonsters}
+function duplicateOfficialMonster(id){const source=officialMonsters.find(m=>String(m.id)===String(id));if(!source)return;const duplicate={id:Date.now()+Math.random(),name:source.name,ac:source.ac,hpFormula:source.hpFormula,hp:source.hp,initiative:Math.max(1,Math.min(20,10+source.initiativeModifier)),cr:source.cr,xp:source.xp,imageId:null,duplicatedFromOfficial:true,officialSource:"SRD 5.2.1"};monsters.push(duplicate);if(saveMonsters()){alert("« "+source.name+" » a été ajouté à votre bibliothèque personnelle.");renderOfficialMonsters()}}
+function importOfficialMonsterToCombat(id){const combat=getActiveCombat();const source=officialMonsters.find(m=>String(m.id)===String(id));if(!source)return;if(!combat){alert("Aucun combat actif. Utilise « Ma bibliothèque » pour le conserver.");return}combat.fighters.push({id:Date.now()+Math.random(),type:"monster",sourceId:source.id,name:source.name,initiative:"",concentration:false,advantage:false,disadvantage:false,hp:source.hp,maxHp:source.hp,ac:source.ac,cr:source.cr,xp:source.xp,effect:"",imageId:null,hpFormula:source.hpFormula,officialSource:"SRD 5.2.1"});saveCombats();renderCombats();alert("« "+source.name+" » a été ajouté au combat actif.")}
+function renderOfficialMonsters(filter=""){const container=document.getElementById("officialMonstersList"),status=document.getElementById("officialMonstersStatus");if(!container||!status)return;const q=String(filter||"").trim().toLowerCase(),list=officialMonsters.filter(m=>!q||m.name.toLowerCase().includes(q));status.innerHTML=`<strong>${officialMonsters.length}</strong> créatures chargées · <strong>${list.length}</strong> affichées<div class="official-source-note">Source : D&D SRD 5.2.1, données structurées. Bibliothèque en lecture seule.</div>`;container.innerHTML=`<div class="official-monsters-search"><input id="officialMonsterSearch" type="search" placeholder="Rechercher un monstre…" value="${escapeHtml(filter)}" oninput="renderOfficialMonsters(this.value)"><span class="official-readonly-badge">🔒 Lecture seule</span></div><div style="overflow:auto;max-height:68vh"><table class="official-monsters-table"><thead><tr><th>Nom</th><th>FP</th><th>XP</th><th>CA</th><th>PV</th><th>Formule PV</th><th>Actions</th></tr></thead><tbody>${list.map(m=>`<tr><td><strong>${escapeHtml(m.name)}</strong></td><td>${escapeHtml(m.cr||"—")}</td><td>${Number(m.xp||0).toLocaleString("fr-FR")}</td><td>${m.ac}</td><td>${m.hp}</td><td>${escapeHtml(m.hpFormula||"—")}</td><td><div class="official-monsters-actions"><button class="secondary-button" onclick="duplicateOfficialMonster('${escapeHtml(m.id)}')">📖 Ma bibliothèque</button><button class="secondary-button" onclick="importOfficialMonsterToCombat('${escapeHtml(m.id)}')">⚔️ Combat</button></div></td></tr>`).join("")}</tbody></table></div>`}
+async function openOfficialMonsters(){showPage("officialMonsters");loadOfficialMonsterCache();try{await ensureOfficialMonstersLoaded();renderOfficialMonsters()}catch(e){const status=document.getElementById("officialMonstersStatus");if(status)status.innerHTML=`Impossible de charger la base officielle en ligne.<br><small>${escapeHtml(e.message||"Erreur inconnue")}</small>`}}
 </script>
 
 </body>
