@@ -2166,7 +2166,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.18
+        BETA 1.19
     </div>
 
 </header>
@@ -2776,7 +2776,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.18";
+const APP_VERSION = "BETA 1.19";
 
 
 /* =====================================================
@@ -2789,7 +2789,8 @@ const DATA_KEYS = [
     "dnd_npcs",
     "dnd_player_groups",
     "dnd_monster_groups",
-    "dnd_combats"
+    "dnd_combats",
+    "dnd_combat_stats_history"
 ];
 const BACKUP_PREFIX = "dnd_safe_backup_";
 const BACKUP_COUNT = 5;
@@ -5300,7 +5301,50 @@ function loadCombats() {
     }
 }
 
+const COMBAT_STATS_HISTORY_KEY = "dnd_combat_stats_history";
+let combatStatsHistory = [];
+
+function loadCombatStatsHistory() {
+    try {
+        const saved = localStorage.getItem(COMBAT_STATS_HISTORY_KEY);
+        combatStatsHistory = saved ? JSON.parse(saved) : [];
+        if (!Array.isArray(combatStatsHistory)) combatStatsHistory = [];
+    } catch (error) {
+        combatStatsHistory = [];
+    }
+}
+
+function saveCombatStatsHistory() {
+    return guardedSave(COMBAT_STATS_HISTORY_KEY, combatStatsHistory);
+}
+
+function upsertCombatStatsRecord(combat) {
+    if (!combat || !combat.id) return;
+    const existing = combatStatsHistory.find(r => String(r.id) === String(combat.id));
+    const record = {
+        id: combat.id,
+        name: combat.name || "Combat sans nom",
+        statsStartedAt: combat.statsStartedAt || null,
+        statsEndedAt: combat.statsEndedAt || null,
+        displayElapsedMs: Number(combat.displayElapsedMs) || 0,
+        displayStarted: !!combat.displayStarted,
+        displayStartedAt: combat.displayStartedAt || null,
+        combatEnded: !!combat.combatEnded,
+        statsResult: combat.statsResult || "",
+        currentTurn: Math.max(1, Number(combat.currentTurn) || 1),
+        fighters: (combat.fighters || []).map(f => ({
+            id: f.id, name: f.name || "Sans nom", type: f.type, allegiance: f.allegiance, hp: Number(f.hp) || 0
+        })),
+        statsLog: Array.isArray(combat.statsLog) ? combat.statsLog.map(e => ({ ...e })) : []
+    };
+    if (existing) Object.assign(existing, record);
+    else combatStatsHistory.push(record);
+}
+
 function saveCombats() {
+    loadCombatStatsHistory();
+    combats.forEach(upsertCombatStatsRecord);
+    saveCombatStatsHistory();
     return guardedSave(COMBAT_STORAGE_KEY, combats);
 }
 
@@ -5320,6 +5364,7 @@ function createCombat() {
     };
 
     combats.push(combat);
+    upsertCombatStatsRecord(combat);
     activeCombatId = combat.id;
     saveCombats();
     renderCombats();
@@ -5690,8 +5735,6 @@ function addManualFighter() {
 function logCombatHpChange(combat, targetIndex, oldHp, newHp) {
     if (!combat || !combat.statsStartedAt || combat.combatEnded) return;
 
-    if (!Array.isArray(combat.statsLog)) combat.statsLog = [];
-
     const before = Number(oldHp);
     const after = Number(newHp);
     if (!Number.isFinite(before) || !Number.isFinite(after)) return;
@@ -5704,9 +5747,9 @@ function logCombatHpChange(combat, targetIndex, oldHp, newHp) {
         ? combat.fighters[sourceIndex]
         : null;
     const target = combat.fighters[targetIndex];
-
     if (!source || !target) return;
 
+    if (!Array.isArray(combat.statsLog)) combat.statsLog = [];
     combat.statsLog.push({
         id: Date.now() + Math.random(),
         at: new Date().toISOString(),
@@ -5718,9 +5761,6 @@ function logCombatHpChange(combat, targetIndex, oldHp, newHp) {
         delta
     });
 
-    // On conserve aussi un instantané des PV afin de pouvoir
-    // récupérer une modification faite par n'importe quel contrôle
-    // de l'écran MJ, même si un autre chemin de rendu intervient.
     if (!combat.statsLastHp) combat.statsLastHp = {};
     combat.statsLastHp[String(target.id)] = after;
 }
@@ -5779,10 +5819,10 @@ function updateFighter(index, field, value) {
                field === "ac") {
         const oldHp = Number(combat.fighters[index].hp) || 0;
         const nextValue = value === "" ? "" : Math.max(0, Number(value) || 0);
+        combat.fighters[index][field] = nextValue;
         if (field === "hp" && nextValue !== "") {
             logCombatHpChange(combat, index, oldHp, Number(nextValue));
         }
-        combat.fighters[index][field] = nextValue;
         if (field === "hp" && Number(combat.fighters[index].hp) > 0 && oldHp <= 0) {
             combat.fighters[index].deathSaves = { successes: 0, failures: 0 };
             combat.fighters[index].deathSavesResult = "";
@@ -5808,8 +5848,8 @@ function changeFighterValue(index, field, amount) {
 
     const current = Number(combat.fighters[index][field]) || 0;
     const next = Math.max(0, current + amount);
-    if (field === "hp") logCombatHpChange(combat, index, current, next);
     combat.fighters[index][field] = next;
+    if (field === "hp") logCombatHpChange(combat, index, current, next);
     if (field === "hp" && next > 0 && current <= 0) {
         combat.fighters[index].deathSaves = { successes: 0, failures: 0 };
         combat.fighters[index].deathSavesResult = "";
@@ -6885,6 +6925,7 @@ function endCombatDisplay() {
     const result = getCombatResultMessage(combat);
     if (result && result.title.includes("VICTOIRE")) combat.statsResult = "won";
     else if (result && result.title.includes("GAME OVER")) combat.statsResult = "lost";
+    else if (!combat.statsResult) combat.statsResult = "won";
 
     combat.displayElapsedMs = getCombatElapsedMs(combat);
     combat.displayStartedAt = null;
@@ -7051,13 +7092,17 @@ function renderStats() {
     const container = document.getElementById("statsList");
     if (!container) return;
     loadCombats();
+    loadCombatStatsHistory();
+    combats.forEach(upsertCombatStatsRecord);
+    saveCombatStatsHistory();
 
-    if (!combats.length) {
+    const statsRecords = combatStatsHistory;
+    if (!statsRecords.length) {
         container.innerHTML = `<div class="stats-empty">Aucun combat enregistré.</div>`;
         return;
     }
 
-    const ordered = [...combats].sort((a,b) => {
+    const ordered = [...statsRecords].sort((a,b) => {
         const da = new Date(a.statsStartedAt || 0).getTime();
         const db = new Date(b.statsStartedAt || 0).getTime();
         return db - da;
@@ -7105,6 +7150,7 @@ async function initializeApp() {
     loadNPCs();
 
     loadGroups();
+    loadCombatStatsHistory();
     loadCombats();
 
     makeCampaignSnapshot();
