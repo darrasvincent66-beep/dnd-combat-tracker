@@ -1923,7 +1923,7 @@ button:active { transform: translateY(1px); }
 
 
 /* =====================================================
-   BETA 1.10 — BOUTON PLEIN ÉCRAN
+   BETA 1.11 — BOUTON PLEIN ÉCRAN
    Couche visuelle/animation uniquement.
    ===================================================== */
 .combat-display-body {
@@ -2082,7 +2082,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.10
+        BETA 1.11
     </div>
 
 </header>
@@ -2672,7 +2672,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.10";
+const APP_VERSION = "BETA 1.11";
 
 
 /* =====================================================
@@ -5905,13 +5905,14 @@ function writeCombatDisplayDocument() {
                 </div>
                 <div class="combat-display-controls">
                     <div id="displayTimer" class="combat-display-timer">⏱ 00:00:00</div>
-                    <button class="combat-display-fullscreen" title="Plein écran" aria-label="Plein écran" onclick="toggleCombatDisplayFullscreen()">⛶</button>
+                    <button class="combat-display-fullscreen" title="Plein écran" aria-label="Plein écran" onclick="(function(){const d=window.document;if(!d.fullscreenElement){const e=d.documentElement;if(e.requestFullscreen)e.requestFullscreen().catch(()=>{});}else if(d.exitFullscreen)d.exitFullscreen().catch(()=>{});})()">⛶</button>
                     <button onclick="window.close()">✕</button>
                 </div>
             </header>
             <div class="combat-display-ambient ambient-one"></div>
             <div class="combat-display-ambient ambient-two"></div>
             <main id="displayTrack" class="combat-display-track"></main>
+            <script>document.addEventListener("fullscreenchange",function(){const b=document.querySelector(".combat-display-fullscreen");if(!b)return;b.title=document.fullscreenElement?"Quitter le plein écran":"Plein écran";b.setAttribute("aria-label",b.title);});<\/script>
         </body>
         </html>
     `);
