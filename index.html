@@ -2127,6 +2127,30 @@ button:active { transform: translateY(1px); }
     .combat-display-body::before,.combat-display-card,.combat-display-card::before,.combat-display-card.active::after,.combat-display-hidden::after,.combat-display-ambient,.combat-display-hit,.combat-display-hit::before,.combat-display-hit::after { animation:none !important; }
     .combat-display-active-banner { transition:none; }
 }
+
+/* =====================================================
+   STATS / HISTORIQUE
+===================================================== */
+#statsList{max-width:1200px;margin:0 auto;}
+.stats-table-wrap{overflow-x:auto;background:#242424;border:1px solid #4a4338;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.16);}
+.stats-table{width:100%;border-collapse:collapse;min-width:760px;}
+.stats-table th{background:linear-gradient(180deg,#30302d,#252422);color:#bfb7a5;font-size:12px;padding:11px 10px;text-align:left;white-space:nowrap;}
+.stats-table td{padding:11px 10px;border-top:1px solid #3d3d3d;vertical-align:middle;}
+.stats-row{cursor:pointer;transition:background .15s ease;}
+.stats-row:hover{background:rgba(210,166,76,.07);}
+.stats-state{display:inline-flex;align-items:center;gap:6px;font-weight:700;}
+.stats-state.running{color:#72d38a;}
+.stats-state.won{color:#e0b75d;}
+.stats-state.lost{color:#e07171;}
+.stats-detail-row td{background:rgba(20,19,17,.82);padding:16px;}
+.stats-detail-title{font-weight:700;color:#f0dfb6;margin-bottom:10px;}
+.stats-detail-table{width:100%;border-collapse:collapse;}
+.stats-detail-table th,.stats-detail-table td{padding:8px;border:1px solid #403b33;}
+.stats-detail-table th{color:#c8bda9;background:#2a2926;font-size:12px;text-align:left;}
+.stats-detail-table td{text-align:left;}
+.stats-damage{color:#e07171;font-weight:700;}
+.stats-heal{color:#72d38a;font-weight:700;}
+.stats-empty{padding:30px;text-align:center;color:#999;background:#242424;border:1px solid #3d3d3d;border-radius:12px;}
 </style>
 </head>
 
@@ -2142,7 +2166,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.12
+        BETA 1.16
     </div>
 
 </header>
@@ -2160,6 +2184,12 @@ button:active { transform: translateY(1px); }
         class="nav-button"
         onclick="showPage('combat', this)">
         ⚔️ Combats
+    </button>
+
+    <button
+        class="nav-button"
+        onclick="showPage('stats', this); renderStats()">
+        📊 Stats
     </button>
 
 </nav>
@@ -2422,6 +2452,20 @@ button:active { transform: translateY(1px); }
 
     <div id="combatWorkspace"></div>
 
+</section>
+
+<!-- =========================
+     STATS / HISTORIQUE
+========================= -->
+
+<section id="stats" class="page">
+    <div class="page-header">
+        <div>
+            <h2>📊 Statistiques & historique</h2>
+            <p style="color:#aaa;margin:6px 0 0;">Historique de tous les combats et rapport détaillé.</p>
+        </div>
+    </div>
+    <div id="statsList"></div>
 </section>
 
 </main>
@@ -2732,7 +2776,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.15";
+const APP_VERSION = "BETA 1.16";
 
 
 /* =====================================================
@@ -5210,6 +5254,11 @@ function loadCombats() {
         combats.forEach(combat => {
             if (!Array.isArray(combat.fighters)) return;
 
+            if (!Array.isArray(combat.statsLog)) combat.statsLog = [];
+            if (!Object.prototype.hasOwnProperty.call(combat, "statsStartedAt")) combat.statsStartedAt = null;
+            if (!Object.prototype.hasOwnProperty.call(combat, "statsEndedAt")) combat.statsEndedAt = null;
+            if (!Object.prototype.hasOwnProperty.call(combat, "statsResult")) combat.statsResult = "";
+
             combat.fighters.forEach(fighter => {
                 if (Number(fighter.maxHp) > 0) return;
 
@@ -5257,7 +5306,11 @@ function createCombat() {
     const combat = {
         id: Date.now() + Math.random(),
         name: `Combat ${combats.length + 1}`,
-        fighters: []
+        fighters: [],
+        statsLog: [],
+        statsStartedAt: null,
+        statsEndedAt: null,
+        statsResult: ""
     };
 
     combats.push(combat);
@@ -5627,6 +5680,31 @@ function addManualFighter() {
     renderCombats();
 }
 
+function logCombatHpChange(combat, targetIndex, oldHp, newHp) {
+    if (!combat || !combat.displayStarted) return;
+    if (!Array.isArray(combat.statsLog)) combat.statsLog = [];
+    const delta = Number(newHp) - Number(oldHp);
+    if (!Number.isFinite(delta) || delta === 0) return;
+
+    const sourceIndex = Number(combat.currentIndex);
+    const source = Number.isFinite(sourceIndex) && combat.fighters[sourceIndex]
+        ? combat.fighters[sourceIndex]
+        : null;
+    const target = combat.fighters[targetIndex];
+    if (!source || !target) return;
+
+    combat.statsLog.push({
+        id: Date.now() + Math.random(),
+        at: new Date().toISOString(),
+        turn: Number(combat.currentTurn) || 1,
+        sourceId: source.id,
+        sourceName: source.name || "Sans nom",
+        targetId: target.id,
+        targetName: target.name || "Sans nom",
+        delta
+    });
+}
+
 function updateFighter(index, field, value) {
     const combat = getActiveCombat();
     if (!combat || !combat.fighters[index]) return;
@@ -5639,8 +5717,11 @@ function updateFighter(index, field, value) {
                field === "hp" ||
                field === "ac") {
         const oldHp = Number(combat.fighters[index].hp) || 0;
-        combat.fighters[index][field] =
-            value === "" ? "" : Math.max(0, Number(value) || 0);
+        const nextValue = value === "" ? "" : Math.max(0, Number(value) || 0);
+        if (field === "hp" && nextValue !== "") {
+            logCombatHpChange(combat, index, oldHp, Number(nextValue));
+        }
+        combat.fighters[index][field] = nextValue;
         if (field === "hp" && Number(combat.fighters[index].hp) > 0 && oldHp <= 0) {
             combat.fighters[index].deathSaves = { successes: 0, failures: 0 };
             combat.fighters[index].deathSavesResult = "";
@@ -5659,6 +5740,7 @@ function changeFighterValue(index, field, amount) {
 
     const current = Number(combat.fighters[index][field]) || 0;
     const next = Math.max(0, current + amount);
+    if (field === "hp") logCombatHpChange(combat, index, current, next);
     combat.fighters[index][field] = next;
     if (field === "hp" && next > 0 && current <= 0) {
         combat.fighters[index].deathSaves = { successes: 0, failures: 0 };
@@ -6083,9 +6165,14 @@ function renderCombatResultOverlay(doc, combat) {
     if (!result) return;
 
     if (!combat.combatEnded) {
+        combat.displayElapsedMs = getCombatElapsedMs(combat);
+        combat.displayStartedAt = null;
+        combat.statsEndedAt = new Date().toISOString();
         combat.combatEnded = true;
-        saveCombats();
     }
+    if (result.title.includes("VICTOIRE")) combat.statsResult = "won";
+    else if (result.title.includes("GAME OVER")) combat.statsResult = "lost";
+    saveCombats();
 
     const overlay = doc.createElement("div");
     overlay.id = "combatResultOverlay";
@@ -6656,6 +6743,10 @@ function startCombatDisplayState() {
 
     combat.displayStarted = true;
     combat.importPanelCollapsed = true;
+    if (!combat.statsStartedAt) combat.statsStartedAt = new Date().toISOString();
+    combat.statsEndedAt = null;
+    combat.statsResult = "";
+    if (!Array.isArray(combat.statsLog)) combat.statsLog = [];
     combat.currentTurn = 1;
     combat.displayElapsedMs = 0;
     combat.displayStartedAt = Date.now();
@@ -6714,6 +6805,7 @@ function endCombatDisplay() {
     combat.displayElapsedMs = getCombatElapsedMs(combat);
     combat.displayStartedAt = null;
     combat.displayStarted = false;
+    combat.statsEndedAt = combat.statsEndedAt || new Date().toISOString();
     combat.combatEnded = true;
     saveCombats();
 
@@ -6805,6 +6897,97 @@ function combatDisplayPrevious() {
 }
 
 
+
+function formatStatsDate(iso) {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("fr-FR", { day:"2-digit", month:"2-digit", year:"2-digit" });
+}
+
+function formatStatsTime(iso) {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit", second:"2-digit" });
+}
+
+function getCombatStatsState(combat) {
+    if (combat.statsResult === "won") return { key:"won", label:"Gagné", icon:"🟡" };
+    if (combat.statsResult === "lost") return { key:"lost", label:"Perdu", icon:"🔴" };
+    return { key:"running", label:"En cours", icon:"🟢" };
+}
+
+function getCombatStatsRows(combat) {
+    const byId = new Map((combat.fighters || []).map(f => [String(f.id), f]));
+    const totals = new Map();
+    (combat.statsLog || []).forEach(entry => {
+        const key = String(entry.sourceId);
+        if (!totals.has(key)) totals.set(key, { name: entry.sourceName || "Sans nom", damage:0, healing:0 });
+        const row = totals.get(key);
+        const delta = Number(entry.delta) || 0;
+        if (delta < 0) row.damage += Math.abs(delta);
+        if (delta > 0) row.healing += delta;
+    });
+    return Array.from(totals.entries()).map(([id,row]) => ({ id, fighter:byId.get(id), ...row }));
+}
+
+function toggleStatsDetail(id) {
+    const row = document.getElementById(`stats-detail-${id}`);
+    if (!row) return;
+    row.hidden = !row.hidden;
+}
+
+function renderStats() {
+    const container = document.getElementById("statsList");
+    if (!container) return;
+    loadCombats();
+
+    if (!combats.length) {
+        container.innerHTML = `<div class="stats-empty">Aucun combat enregistré.</div>`;
+        return;
+    }
+
+    const ordered = [...combats].sort((a,b) => {
+        const da = new Date(a.statsStartedAt || 0).getTime();
+        const db = new Date(b.statsStartedAt || 0).getTime();
+        return db - da;
+    });
+
+    const rows = ordered.map(combat => {
+        const state = getCombatStatsState(combat);
+        const details = getCombatStatsRows(combat);
+        const detailRows = details.length
+            ? details.map(item => `<tr><td>${escapeHtml(item.name)}</td><td class="stats-damage">${item.damage}</td><td class="stats-heal">${item.healing}</td></tr>`).join("")
+            : `<tr><td colspan="3">Aucune variation de PV enregistrée.</td></tr>`;
+        return `
+            <tr class="stats-row" onclick="toggleStatsDetail('${String(combat.id).replace(/'/g,"\'")}')">
+                <td>${escapeHtml(combat.name || "Combat sans nom")}</td>
+                <td>${formatStatsDate(combat.statsStartedAt)}</td>
+                <td>${formatStatsTime(combat.statsStartedAt)}</td>
+                <td>${formatCombatElapsed(getCombatElapsedMs(combat))}</td>
+                <td>${Math.max(0, Number(combat.currentTurn) || 1)}</td>
+                <td><span class="stats-state ${state.key}">${state.icon} ${state.label}</span></td>
+            </tr>
+            <tr id="stats-detail-${String(combat.id)}" class="stats-detail-row" hidden>
+                <td colspan="6">
+                    <div class="stats-detail-title">${escapeHtml(combat.name || "Combat sans nom")} — rapport détaillé</div>
+                    <table class="stats-detail-table">
+                        <thead><tr><th>Combattant</th><th>Dégâts infligés</th><th>Soins</th></tr></thead>
+                        <tbody>${detailRows}</tbody>
+                    </table>
+                </td>
+            </tr>`;
+    }).join("");
+
+    container.innerHTML = `
+        <div class="stats-table-wrap">
+            <table class="stats-table">
+                <thead><tr><th>Combat</th><th>Date</th><th>Heure</th><th>Durée</th><th>Tours</th><th>État</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`;
+}
 
 async function initializeApp() {
 
