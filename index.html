@@ -764,6 +764,13 @@ align-items:stretch;
 justify-content:center;
 gap:18px;
 padding:32px 28px;
+/* Avec beaucoup de combattants, la frise devient sa propre zone défilante.
+   Cela évite que les lignes basses soient coupées par le bas de l'écran. */
+max-height:calc(100vh - 105px);
+box-sizing:border-box;
+overflow-y:auto;
+scroll-behavior:smooth;
+scroll-padding-block:32px;
 }
 .combat-display-timer {
     margin-left:auto;
@@ -2182,7 +2189,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.27
+        BETA 1.32
     </div>
 
 </header>
@@ -2833,7 +2840,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.31";
+const APP_VERSION = "BETA 1.32";
 
 // Facteur de Puissance (FP/CR) → XP selon la table D&D 5e.
 // FP 0 est traité à 10 XP (les règles prévoient 0 ou 10 XP selon la créature).
@@ -6970,6 +6977,22 @@ function renderCombatDisplay() {
     if (combatDisplayWindow.__dndDisplaySignature !== displaySignature) {
         track.innerHTML = cards;
         combatDisplayWindow.__dndDisplaySignature = displaySignature;
+
+        // Au-delà de 10 combattants, plusieurs lignes peuvent dépasser la hauteur
+        // disponible. On recentre automatiquement la ligne du combattant actif
+        // dans la zone visible de la frise.
+        if (combat.fighters.length > 10 && combat.displayStarted) {
+            requestAnimationFrame(() => {
+                if (!track || !track.isConnected) return;
+                const activeCard = track.querySelector(`[data-display-index="${currentIndex}"]`);
+                if (!activeCard) return;
+
+                const target = activeCard.offsetTop + (activeCard.offsetHeight / 2) - (track.clientHeight / 2);
+                const maxScroll = Math.max(0, track.scrollHeight - track.clientHeight);
+                const targetScroll = Math.max(0, Math.min(maxScroll, target));
+                track.scrollTo({ top: targetScroll, behavior: "smooth" });
+            });
+        }
     }
     renderCombatResultOverlay(combatDisplayWindow.document, combat);
 }
@@ -7033,6 +7056,7 @@ function renderCombatDisplayCard(fighter, index, combat, animateActive = false) 
             ${active && animateActive ? "turn-arrival" : ""}
             ${isDead ? "dead" : ""}
             ${hitActive ? "combat-display-hit" : ""}"
+            data-display-index="${index}"
             ${hitActive ? `data-hit-text="-${hit.amount} PV"` : ""}>
             <div class="combat-display-portrait">
                 ${portrait}
