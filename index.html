@@ -2170,7 +2170,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.21
+        BETA 1.22
     </div>
 
 </header>
@@ -2780,7 +2780,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.21";
+const APP_VERSION = "BETA 1.22";
 
 
 /* =====================================================
@@ -5364,12 +5364,19 @@ function finalizeCombatStatsRecord(combat) {
 }
 
 function saveCombats() {
+    // Synchronise uniquement les rapports Stats qui existent déjà.
+    // Un rapport supprimé dans Stats ne doit JAMAIS être recréé simplement
+    // parce qu'une sauvegarde du combat actif a lieu.
     loadCombatStatsHistory();
+    let historyChanged = false;
     combats.forEach(combat => {
         const existing = combatStatsHistory.find(r => String(r.id) === String(combat.id));
-        if (!existing || !existing.combatEnded) upsertCombatStatsRecord(combat);
+        if (existing && !existing.combatEnded) {
+            Object.assign(existing, buildCombatStatsRecord(combat));
+            historyChanged = true;
+        }
     });
-    saveCombatStatsHistory();
+    if (historyChanged) saveCombatStatsHistory();
     return guardedSave(COMBAT_STORAGE_KEY, combats);
 }
 
