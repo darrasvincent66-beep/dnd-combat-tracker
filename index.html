@@ -1966,7 +1966,7 @@ button:active { transform: translateY(1px); }
 
 
 /* =====================================================
-   BETA 1.13 — AJOUT COMBATTANT REPLIABLE
+   BETA 1.14 — AJOUT COMBATTANT REPLIABLE
    Couche visuelle/animation uniquement.
    ===================================================== */
 .combat-display-body {
@@ -2715,7 +2715,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.13";
+const APP_VERSION = "BETA 1.14";
 
 
 /* =====================================================
@@ -5293,7 +5293,7 @@ function renderCombats() {
 
 function toggleCombatImportPanel() {
     const combat = getActiveCombat();
-    if (!combat) return;
+    if (!combat || !combat.displayStarted) return;
 
     combat.importPanelCollapsed = combat.importPanelCollapsed === false;
     saveCombats();
@@ -5398,10 +5398,11 @@ function renderCombatWorkspace(combat) {
                 </div>
             </div>
             </div>
+            ${combat.displayStarted ? `
             <button class="combat-import-toggle" type="button"
                     onclick="toggleCombatImportPanel()"
                     title="${combat.importPanelCollapsed === false ? "Réduire le panneau d'importation" : "Afficher le panneau d'importation"}"
-                    aria-label="${combat.importPanelCollapsed === false ? "Réduire le panneau d'importation" : "Afficher le panneau d'importation"}">${combat.importPanelCollapsed === false ? "▲" : "Ajout combattant ▼"}</button>
+                    aria-label="${combat.importPanelCollapsed === false ? "Réduire le panneau d'importation" : "Afficher le panneau d'importation"}">${combat.importPanelCollapsed === false ? "▲" : "Ajout combattant ▼"}</button>` : ""}
         </div>
 
         <div class="combat-post-import-actions">
