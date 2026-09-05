@@ -2141,7 +2141,11 @@ button:active { transform: translateY(1px); }
 .stats-state{display:inline-flex;align-items:center;gap:6px;font-weight:700;}
 .stats-state.running{color:#72d38a;}
 .stats-state.won{color:#e0b75d;}
-.stats-state.lost{color:#e07171;}
+ .stats-state.lost{color:#e07171;}
+.stats-actions{width:1%;white-space:nowrap;text-align:right;}
+.stats-delete-button{border:1px solid #6b3b3b;background:linear-gradient(180deg,#5a3030,#3d2222);color:#f0caca;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:15px;line-height:1;transition:transform .12s ease,background .12s ease;}
+.stats-delete-button:hover{background:linear-gradient(180deg,#713838,#4a2525);transform:scale(1.04);}
+.stats-delete-button:focus-visible{outline:2px solid #e0b75d;outline-offset:2px;}
 .stats-detail-row td{background:rgba(20,19,17,.82);padding:16px;}
 .stats-detail-title{font-weight:700;color:#f0dfb6;margin-bottom:10px;}
 .stats-detail-table{width:100%;border-collapse:collapse;}
@@ -2166,7 +2170,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.20
+        BETA 1.21
     </div>
 
 </header>
@@ -2776,7 +2780,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.20";
+const APP_VERSION = "BETA 1.21";
 
 
 /* =====================================================
@@ -7073,6 +7077,20 @@ function getCombatStatsRows(combat) {
     }));
 }
 
+function deleteStatsReport(id) {
+    const key = String(id);
+    loadCombatStatsHistory();
+    const report = combatStatsHistory.find(r => String(r.id) === key);
+    if (!report) return;
+
+    const confirmed = window.confirm(`Supprimer le rapport « ${report.name || "Combat sans nom"} » de l'historique Stats ?\n\nCette action ne supprime pas le combat dans l'onglet Combats.`);
+    if (!confirmed) return;
+
+    combatStatsHistory = combatStatsHistory.filter(r => String(r.id) !== key);
+    saveCombatStatsHistory();
+    renderStats();
+}
+
 function toggleStatsDetail(id) {
     const row = document.getElementById(`stats-detail-${id}`);
     if (!row) return;
@@ -7110,9 +7128,10 @@ function renderStats() {
                 <td>${formatCombatElapsed(getCombatElapsedMs(combat))}</td>
                 <td>${Math.max(0, Number(combat.currentTurn) || 1)}</td>
                 <td><span class="stats-state ${state.key}">${state.icon} ${state.label}</span></td>
+                <td class="stats-actions"><button type="button" class="stats-delete-button" title="Supprimer ce rapport" aria-label="Supprimer ce rapport" onclick="event.stopPropagation(); deleteStatsReport('${String(combat.id).replace(/'/g,"\'")}')">🗑️</button></td>
             </tr>
             <tr id="stats-detail-${String(combat.id)}" class="stats-detail-row" hidden>
-                <td colspan="6">
+                <td colspan="7">
                     <div class="stats-detail-title">${escapeHtml(combat.name || "Combat sans nom")} — rapport détaillé</div>
                     <table class="stats-detail-table">
                         <thead><tr><th>Combattant</th><th>Dégâts infligés</th><th>Soins</th></tr></thead>
@@ -7125,7 +7144,7 @@ function renderStats() {
     container.innerHTML = `
         <div class="stats-table-wrap">
             <table class="stats-table">
-                <thead><tr><th>Combat</th><th>Date</th><th>Heure</th><th>Durée</th><th>Tours</th><th>État</th></tr></thead>
+                <thead><tr><th>Combat</th><th>Date</th><th>Heure</th><th>Durée</th><th>Tours</th><th>État</th><th></th></tr></thead>
                 <tbody>${rows}</tbody>
             </table>
         </div>`;
