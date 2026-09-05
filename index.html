@@ -553,6 +553,16 @@ color:#aaa;
     border:1px solid #3d3d3d;
     border-radius:10px;
 }
+.combat-import-shell {
+    position:relative;
+    display:flex;
+    align-items:stretch;
+    gap:0;
+}
+.combat-import-shell .combat-import-panel {
+    flex:1 1 auto;
+    transition:max-height .22s ease, opacity .18s ease, padding .22s ease, border-width .22s ease;
+}
 .combat-import-panel.collapsed {
     max-height:0;
     padding-top:0;
@@ -562,6 +572,36 @@ color:#aaa;
     overflow:hidden;
     opacity:0;
     margin:0;
+}
+.combat-import-toggle {
+    flex:0 0 28px;
+    align-self:center;
+    width:28px;
+    height:54px;
+    padding:0;
+    margin-left:-1px;
+    border:1px solid #514b40;
+    border-left:0;
+    border-radius:0 8px 8px 0;
+    background:linear-gradient(180deg,#4a4844,#343330);
+    color:#e0c67f;
+    font-size:20px;
+    font-weight:700;
+    cursor:pointer;
+    box-shadow:0 4px 12px rgba(0,0,0,.18);
+}
+.combat-import-toggle:hover {
+    background:linear-gradient(180deg,#5a574f,#3d3a36);
+    color:#f0d894;
+}
+.combat-import-shell.collapsed .combat-import-toggle {
+    border-left:1px solid #514b40;
+    border-radius:8px;
+    margin-left:0;
+}
+@media (max-width:560px) {
+    .combat-import-shell { align-items:flex-start; }
+    .combat-import-toggle { flex-basis:26px; width:26px; }
 }
 .combat-post-import-actions {
     display:flex;
@@ -1923,7 +1963,7 @@ button:active { transform: translateY(1px); }
 
 
 /* =====================================================
-   BETA 1.11 — BOUTON PLEIN ÉCRAN
+   BETA 1.12 — BOUTON PLEIN ÉCRAN
    Couche visuelle/animation uniquement.
    ===================================================== */
 .combat-display-body {
@@ -2082,7 +2122,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.11
+        BETA 1.12
     </div>
 
 </header>
@@ -2672,7 +2712,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.11";
+const APP_VERSION = "BETA 1.12";
 
 
 /* =====================================================
@@ -5248,6 +5288,15 @@ function renderCombats() {
     attachCombatListeners();
 }
 
+function toggleCombatImportPanel() {
+    const combat = getActiveCombat();
+    if (!combat) return;
+
+    combat.importPanelCollapsed = combat.importPanelCollapsed === false;
+    saveCombats();
+    renderCombats();
+}
+
 function renderCombatWorkspace(combat) {
     const playerGroupOptions = playerGroups.map(group =>
         `<option value="${escapeHtml(String(group.id))}">${escapeHtml(group.name)}</option>`
@@ -5278,7 +5327,8 @@ function renderCombatWorkspace(combat) {
             <button class="secondary-button" onclick="combatDisplayNext()">Suivant ▶️</button>` : ""}
         </div>
 
-        <div class="combat-import-panel ${combat.displayStarted ? "collapsed" : ""}">
+        <div class="combat-import-shell ${combat.displayStarted && combat.importPanelCollapsed !== false ? "collapsed" : ""}">
+            <div class="combat-import-panel ${combat.displayStarted && combat.importPanelCollapsed !== false ? "collapsed" : ""}">
             <div class="combat-import-row">
                 <div class="combat-import-title">👥 Joueurs</div>
                 <div class="combat-import-option">
@@ -5344,6 +5394,11 @@ function renderCombatWorkspace(combat) {
                     <button class="primary-button combat-import-button" onclick="addManualFighter()">Importer</button>
                 </div>
             </div>
+            </div>
+            <button class="combat-import-toggle" type="button"
+                    onclick="toggleCombatImportPanel()"
+                    title="${combat.importPanelCollapsed === false ? "Réduire le panneau d'importation" : "Afficher le panneau d'importation"}"
+                    aria-label="${combat.importPanelCollapsed === false ? "Réduire le panneau d'importation" : "Afficher le panneau d'importation"}">${combat.importPanelCollapsed === false ? "<" : ">"}</button>
         </div>
 
         <div class="combat-post-import-actions">
@@ -6571,6 +6626,7 @@ function startCombatDisplayState() {
     if (!combat) return;
 
     combat.displayStarted = true;
+    combat.importPanelCollapsed = true;
     combat.currentTurn = 1;
     combat.displayElapsedMs = 0;
     combat.displayStartedAt = Date.now();
