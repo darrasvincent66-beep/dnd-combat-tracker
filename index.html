@@ -1869,6 +1869,23 @@ button:active { transform: translateY(1px); }
 #combat .combat-row.player-row { background:linear-gradient(90deg,rgba(45,105,73,.28),rgba(35,35,32,.18)); }
 #combat .combat-row.monster-row { background:linear-gradient(90deg,rgba(126,55,55,.3),rgba(39,31,30,.18)); }
 #combat .combat-row.manual-row { background:#292825; }
+.combat-manual-name-input {
+    width:100%;
+    min-width:140px;
+    box-sizing:border-box;
+    padding:6px 8px;
+    border:1px solid rgba(214,174,87,.45);
+    border-radius:6px;
+    background:rgba(0,0,0,.22);
+    color:inherit;
+    font:inherit;
+    font-weight:600;
+}
+.combat-manual-name-input:focus {
+    outline:none;
+    border-color:rgba(214,174,87,.9);
+    box-shadow:0 0 0 2px rgba(214,174,87,.14);
+}
 #combat .combat-row:hover { background-color:rgba(255,255,255,.025); }
 #combat .combat-row.active-turn-row {
     transform:scale(1.006);
@@ -1966,7 +1983,7 @@ button:active { transform: translateY(1px); }
 
 
 /* =====================================================
-   BETA 1.14 — AJOUT COMBATTANT REPLIABLE
+   BETA 1.15 — AJOUT COMBATTANT REPLIABLE
    Couche visuelle/animation uniquement.
    ===================================================== */
 .combat-display-body {
@@ -2715,7 +2732,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.14";
+const APP_VERSION = "BETA 1.15";
 
 
 /* =====================================================
@@ -5479,7 +5496,15 @@ function renderCombatRow(fighter, index, combat = getActiveCombat()) {
             </td>
 
             <td class="combat-name-cell">
-                ${escapeHtml(fighter.name || "Sans nom")}
+                ${fighter.type === "manual" ? `
+                    <input
+                        class="combat-manual-name-input"
+                        value="${escapeHtml(String(fighter.name || "Nouveau combattant"))}"
+                        aria-label="Nom du combattant"
+                        onchange="updateFighter(${index}, 'name', this.value)"
+                        onkeydown="if(event.key==='Enter'){this.blur();}"
+                    >
+                ` : escapeHtml(fighter.name || "Sans nom")}
                 <span class="combat-type">${typeLabel}</span>
             </td>
 
