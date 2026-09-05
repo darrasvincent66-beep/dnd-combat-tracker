@@ -2166,7 +2166,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.17
+        BETA 1.18
     </div>
 
 </header>
@@ -2776,7 +2776,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.17";
+const APP_VERSION = "BETA 1.18";
 
 
 /* =====================================================
@@ -5258,6 +5258,12 @@ function loadCombats() {
             if (!Object.prototype.hasOwnProperty.call(combat, "statsStartedAt")) combat.statsStartedAt = null;
             if (!Object.prototype.hasOwnProperty.call(combat, "statsEndedAt")) combat.statsEndedAt = null;
             if (!Object.prototype.hasOwnProperty.call(combat, "statsResult")) combat.statsResult = "";
+            if (!combat.statsLastHp || typeof combat.statsLastHp !== "object") {
+                combat.statsLastHp = {};
+                combat.fighters.forEach(fighter => {
+                    combat.statsLastHp[String(fighter.id)] = Number(fighter.hp) || 0;
+                });
+            }
 
             combat.fighters.forEach(fighter => {
                 if (Number(fighter.maxHp) > 0) return;
@@ -5347,6 +5353,7 @@ function renderCombats() {
 
     const active = getActiveCombat() || combats[0];
     activeCombatId = active.id;
+    syncCombatStatsFromHp(active);
 
     tabs.innerHTML = combats.map(combat => `
         <button class="combat-tab ${combat.id === activeCombatId ? "active" : ""}"
@@ -5681,23 +5688,23 @@ function addManualFighter() {
 }
 
 function logCombatHpChange(combat, targetIndex, oldHp, newHp) {
-    // Le journal ne doit enregistrer que les variations effectuées
-    // pendant un combat réellement lancé. On ne dépend pas de
-    // l'état de la fenêtre secondaire : le MJ peut modifier les PV
-    // depuis l'écran principal.
     if (!combat || !combat.statsStartedAt || combat.combatEnded) return;
+
     if (!Array.isArray(combat.statsLog)) combat.statsLog = [];
 
     const before = Number(oldHp);
     const after = Number(newHp);
+    if (!Number.isFinite(before) || !Number.isFinite(after)) return;
+
     const delta = after - before;
-    if (!Number.isFinite(delta) || delta === 0) return;
+    if (delta === 0) return;
 
     const sourceIndex = Number(combat.currentIndex);
     const source = Number.isInteger(sourceIndex) && combat.fighters[sourceIndex]
         ? combat.fighters[sourceIndex]
         : null;
     const target = combat.fighters[targetIndex];
+
     if (!source || !target) return;
 
     combat.statsLog.push({
@@ -5710,6 +5717,53 @@ function logCombatHpChange(combat, targetIndex, oldHp, newHp) {
         targetName: target.name || "Sans nom",
         delta
     });
+
+    // On conserve aussi un instantané des PV afin de pouvoir
+    // récupérer une modification faite par n'importe quel contrôle
+    // de l'écran MJ, même si un autre chemin de rendu intervient.
+    if (!combat.statsLastHp) combat.statsLastHp = {};
+    combat.statsLastHp[String(target.id)] = after;
+}
+
+function syncCombatStatsFromHp(combat) {
+    if (!combat || !combat.statsStartedAt || combat.combatEnded) return;
+    if (!Array.isArray(combat.fighters)) return;
+
+    if (!combat.statsLastHp || typeof combat.statsLastHp !== "object") {
+        combat.statsLastHp = {};
+        combat.fighters.forEach(fighter => {
+            combat.statsLastHp[String(fighter.id)] = Number(fighter.hp) || 0;
+        });
+        return;
+    }
+
+    const sourceIndex = Number(combat.currentIndex);
+    const source = Number.isInteger(sourceIndex) && combat.fighters[sourceIndex]
+        ? combat.fighters[sourceIndex]
+        : null;
+
+    if (!source) return;
+
+    let changed = false;
+
+    combat.fighters.forEach(fighter => {
+        const key = String(fighter.id);
+        const currentHp = Number(fighter.hp) || 0;
+
+        if (!Object.prototype.hasOwnProperty.call(combat.statsLastHp, key)) {
+            combat.statsLastHp[key] = currentHp;
+            return;
+        }
+
+        const previousHp = Number(combat.statsLastHp[key]) || 0;
+        if (currentHp !== previousHp) {
+            logCombatHpChange(combat, combat.fighters.indexOf(fighter), previousHp, currentHp);
+            combat.statsLastHp[key] = currentHp;
+            changed = true;
+        }
+    });
+
+    if (changed) saveCombats();
 }
 
 function updateFighter(index, field, value) {
@@ -5737,8 +5791,15 @@ function updateFighter(index, field, value) {
         combat.fighters[index][field] = value;
     }
 
+    if (field === "hp" && combat.statsStartedAt && !combat.combatEnded) {
+        if (!combat.statsLastHp) combat.statsLastHp = {};
+        combat.statsLastHp[String(combat.fighters[index].id)] = Number(combat.fighters[index].hp) || 0;
+    }
     saveCombats();
-    if (field === "hp") renderCombatDisplay();
+    if (field === "hp") {
+        renderCombatDisplay();
+        renderCombats();
+    }
 }
 
 function changeFighterValue(index, field, amount) {
@@ -5752,6 +5813,10 @@ function changeFighterValue(index, field, amount) {
     if (field === "hp" && next > 0 && current <= 0) {
         combat.fighters[index].deathSaves = { successes: 0, failures: 0 };
         combat.fighters[index].deathSavesResult = "";
+    }
+    if (field === "hp" && combat.statsStartedAt && !combat.combatEnded) {
+        if (!combat.statsLastHp) combat.statsLastHp = {};
+        combat.statsLastHp[String(combat.fighters[index].id)] = Number(combat.fighters[index].hp) || 0;
     }
     saveCombats();
     if (field === "hp") renderCombatDisplay();
@@ -6754,6 +6819,10 @@ function startCombatDisplayState() {
     combat.statsEndedAt = null;
     combat.statsResult = "";
     if (!Array.isArray(combat.statsLog)) combat.statsLog = [];
+    combat.statsLastHp = {};
+    (combat.fighters || []).forEach(fighter => {
+        combat.statsLastHp[String(fighter.id)] = Number(fighter.hp) || 0;
+    });
     combat.currentTurn = 1;
     combat.displayElapsedMs = 0;
     combat.displayStartedAt = Date.now();
@@ -6931,6 +7000,7 @@ function formatStatsTime(iso) {
 function getCombatStatsState(combat) {
     if (combat.statsResult === "won") return { key:"won", label:"Gagné", icon:"🟡" };
     if (combat.statsResult === "lost") return { key:"lost", label:"Perdu", icon:"🔴" };
+    if (combat.combatEnded) return { key:"won", label:"Gagné", icon:"🟡" };
     return { key:"running", label:"En cours", icon:"🟢" };
 }
 
