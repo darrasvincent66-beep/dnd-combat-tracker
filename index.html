@@ -2170,7 +2170,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.22
+        BETA 1.23
     </div>
 
 </header>
@@ -2780,7 +2780,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.22";
+const APP_VERSION = "BETA 1.23";
 
 
 /* =====================================================
@@ -5806,6 +5806,33 @@ function syncCombatStatsFromHp(combat) {
     if (changed) saveCombats();
 }
 
+function refreshCombatRow(index) {
+    const combat = getActiveCombat();
+    if (!combat || !combat.fighters[index]) return;
+    const tbody = document.querySelector(".combat-table tbody");
+    if (!tbody) return;
+    const row = tbody.querySelector(`tr.combat-row[data-index="${index}"]`);
+    if (!row) return;
+    row.outerHTML = renderCombatRow(combat.fighters[index], index, combat);
+}
+
+function refreshCombatTurnRows() {
+    const combat = getActiveCombat();
+    if (!combat) return;
+    const rows = document.querySelectorAll(".combat-table tbody tr.combat-row");
+    rows.forEach(row => {
+        const index = Number(row.dataset.index);
+        const fighter = combat.fighters[index];
+        if (!fighter) return;
+        const active = combat.displayStarted &&
+            Number(combat.currentIndex) === index &&
+            !((fighter.type === "monster" ||
+               ((fighter.type === "npc" || fighter.type === "manual") && fighter.allegiance === "enemy")) &&
+              Number(fighter.hp) <= 0);
+        row.classList.toggle("active-turn-row", active);
+    });
+}
+
 function updateFighter(index, field, value) {
     const combat = getActiveCombat();
     if (!combat || !combat.fighters[index]) return;
@@ -5837,8 +5864,9 @@ function updateFighter(index, field, value) {
     }
     saveCombats();
     if (field === "hp") {
+        // Mise à jour ciblée : ne recrée pas toute la table du MJ après chaque clic.
+        refreshCombatRow(index);
         renderCombatDisplay();
-        renderCombats();
     }
 }
 
@@ -5859,8 +5887,10 @@ function changeFighterValue(index, field, amount) {
         combat.statsLastHp[String(combat.fighters[index].id)] = Number(combat.fighters[index].hp) || 0;
     }
     saveCombats();
-    if (field === "hp") renderCombatDisplay();
-    renderCombats();
+    if (field === "hp") {
+        refreshCombatRow(index);
+        renderCombatDisplay();
+    }
 }
 
 function rerollCombatInitiative(index) {
@@ -6983,8 +7013,8 @@ function combatDisplayNext() {
     );
 
     saveCombats();
+    refreshCombatTurnRows();
     renderCombatDisplay();
-    renderCombats();
 }
 
 function combatDisplayPrevious() {
@@ -7020,8 +7050,8 @@ function combatDisplayPrevious() {
     combat.currentIndex = previousIndex;
 
     saveCombats();
+    refreshCombatTurnRows();
     renderCombatDisplay();
-    renderCombats();
 }
 
 
