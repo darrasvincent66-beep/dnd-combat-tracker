@@ -1690,6 +1690,17 @@ input:focus, select:focus, textarea:focus {
     box-shadow: 0 0 0 2px rgba(200,168,90,.10);
 }
 
+/* BETA 1.25 — rendu fiable des listes FP */
+#npcCR, #monsterCR {
+    color: #eee7d8;
+    background-color: #151412;
+    color-scheme: dark;
+}
+#npcCR option, #monsterCR option {
+    background-color: #211f1b;
+    color: #eee7d8;
+}
+
 label, .stat-label, .combat-import-label { color: #aaa18f; }
 
 .portrait,
@@ -2170,7 +2181,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.24
+        BETA 1.25
     </div>
 
 </header>
@@ -2804,7 +2815,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.24";
+const APP_VERSION = "BETA 1.25";
 
 // Facteur de Puissance (FP/CR) → XP selon la table D&D 5e.
 // FP 0 est traité à 10 XP (les règles prévoient 0 ou 10 XP selon la créature).
