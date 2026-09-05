@@ -2166,7 +2166,7 @@ button:active { transform: translateY(1px); }
     </p>
 
     <div class="version">
-        BETA 1.19
+        BETA 1.20
     </div>
 
 </header>
@@ -2776,7 +2776,7 @@ button:active { transform: translateY(1px); }
    CONFIGURATION
 ===================================================== */
 
-const APP_VERSION = "BETA 1.19";
+const APP_VERSION = "BETA 1.20";
 
 
 /* =====================================================
@@ -5318,10 +5318,8 @@ function saveCombatStatsHistory() {
     return guardedSave(COMBAT_STATS_HISTORY_KEY, combatStatsHistory);
 }
 
-function upsertCombatStatsRecord(combat) {
-    if (!combat || !combat.id) return;
-    const existing = combatStatsHistory.find(r => String(r.id) === String(combat.id));
-    const record = {
+function buildCombatStatsRecord(combat) {
+    return {
         id: combat.id,
         name: combat.name || "Combat sans nom",
         statsStartedAt: combat.statsStartedAt || null,
@@ -5333,17 +5331,40 @@ function upsertCombatStatsRecord(combat) {
         statsResult: combat.statsResult || "",
         currentTurn: Math.max(1, Number(combat.currentTurn) || 1),
         fighters: (combat.fighters || []).map(f => ({
-            id: f.id, name: f.name || "Sans nom", type: f.type, allegiance: f.allegiance, hp: Number(f.hp) || 0
+            id: f.id, name: f.name || "Sans nom", type: f.type,
+            allegiance: f.allegiance, hp: Number(f.hp) || 0
         })),
         statsLog: Array.isArray(combat.statsLog) ? combat.statsLog.map(e => ({ ...e })) : []
     };
+}
+
+function upsertCombatStatsRecord(combat) {
+    if (!combat || !combat.id) return;
+    const existing = combatStatsHistory.find(r => String(r.id) === String(combat.id));
+    // Un rapport finalisé est un instantané historique : ne jamais le remplacer
+    // par un état moins avancé du combat actif.
+    if (existing && existing.combatEnded && !combat.combatEnded) return;
+    const record = buildCombatStatsRecord(combat);
     if (existing) Object.assign(existing, record);
     else combatStatsHistory.push(record);
 }
 
+function finalizeCombatStatsRecord(combat) {
+    if (!combat || !combat.id) return;
+    loadCombatStatsHistory();
+    const existing = combatStatsHistory.find(r => String(r.id) === String(combat.id));
+    const record = buildCombatStatsRecord(combat);
+    if (existing) Object.assign(existing, record);
+    else combatStatsHistory.push(record);
+    saveCombatStatsHistory();
+}
+
 function saveCombats() {
     loadCombatStatsHistory();
-    combats.forEach(upsertCombatStatsRecord);
+    combats.forEach(combat => {
+        const existing = combatStatsHistory.find(r => String(r.id) === String(combat.id));
+        if (!existing || !existing.combatEnded) upsertCombatStatsRecord(combat);
+    });
     saveCombatStatsHistory();
     return guardedSave(COMBAT_STORAGE_KEY, combats);
 }
@@ -5732,77 +5753,45 @@ function addManualFighter() {
     renderCombats();
 }
 
-function logCombatHpChange(combat, targetIndex, oldHp, newHp) {
-    if (!combat || !combat.statsStartedAt || combat.combatEnded) return;
-
-    const before = Number(oldHp);
-    const after = Number(newHp);
+function recordCombatHpEvent(combat, targetIndex, oldHp, newHp) {
+    if (!combat || !combat.displayStarted || combat.combatEnded) return;
+    const before = Number(oldHp), after = Number(newHp);
     if (!Number.isFinite(before) || !Number.isFinite(after)) return;
-
     const delta = after - before;
     if (delta === 0) return;
-
     const sourceIndex = Number(combat.currentIndex);
-    const source = Number.isInteger(sourceIndex) && combat.fighters[sourceIndex]
-        ? combat.fighters[sourceIndex]
-        : null;
+    const source = Number.isInteger(sourceIndex) && combat.fighters[sourceIndex] ? combat.fighters[sourceIndex] : null;
     const target = combat.fighters[targetIndex];
     if (!source || !target) return;
-
     if (!Array.isArray(combat.statsLog)) combat.statsLog = [];
     combat.statsLog.push({
-        id: Date.now() + Math.random(),
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         at: new Date().toISOString(),
         turn: Math.max(1, Number(combat.currentTurn) || 1),
-        sourceId: source.id,
-        sourceName: source.name || "Sans nom",
-        targetId: target.id,
-        targetName: target.name || "Sans nom",
-        delta
+        sourceId: source.id, sourceName: source.name || "Sans nom",
+        targetId: target.id, targetName: target.name || "Sans nom", delta
     });
-
-    if (!combat.statsLastHp) combat.statsLastHp = {};
-    combat.statsLastHp[String(target.id)] = after;
 }
 
 function syncCombatStatsFromHp(combat) {
-    if (!combat || !combat.statsStartedAt || combat.combatEnded) return;
-    if (!Array.isArray(combat.fighters)) return;
-
+    if (!combat || !combat.displayStarted || combat.combatEnded || !Array.isArray(combat.fighters)) return;
     if (!combat.statsLastHp || typeof combat.statsLastHp !== "object") {
         combat.statsLastHp = {};
-        combat.fighters.forEach(fighter => {
-            combat.statsLastHp[String(fighter.id)] = Number(fighter.hp) || 0;
-        });
+        combat.fighters.forEach(f => combat.statsLastHp[String(f.id)] = Number(f.hp) || 0);
         return;
     }
-
-    const sourceIndex = Number(combat.currentIndex);
-    const source = Number.isInteger(sourceIndex) && combat.fighters[sourceIndex]
-        ? combat.fighters[sourceIndex]
-        : null;
-
-    if (!source) return;
-
     let changed = false;
-
     combat.fighters.forEach(fighter => {
-        const key = String(fighter.id);
-        const currentHp = Number(fighter.hp) || 0;
-
+        const key = String(fighter.id), currentHp = Number(fighter.hp) || 0;
         if (!Object.prototype.hasOwnProperty.call(combat.statsLastHp, key)) {
-            combat.statsLastHp[key] = currentHp;
-            return;
+            combat.statsLastHp[key] = currentHp; return;
         }
-
         const previousHp = Number(combat.statsLastHp[key]) || 0;
         if (currentHp !== previousHp) {
-            logCombatHpChange(combat, combat.fighters.indexOf(fighter), previousHp, currentHp);
-            combat.statsLastHp[key] = currentHp;
-            changed = true;
+            recordCombatHpEvent(combat, combat.fighters.indexOf(fighter), previousHp, currentHp);
+            combat.statsLastHp[key] = currentHp; changed = true;
         }
     });
-
     if (changed) saveCombats();
 }
 
@@ -5821,7 +5810,7 @@ function updateFighter(index, field, value) {
         const nextValue = value === "" ? "" : Math.max(0, Number(value) || 0);
         combat.fighters[index][field] = nextValue;
         if (field === "hp" && nextValue !== "") {
-            logCombatHpChange(combat, index, oldHp, Number(nextValue));
+            recordCombatHpEvent(combat, index, oldHp, Number(nextValue));
         }
         if (field === "hp" && Number(combat.fighters[index].hp) > 0 && oldHp <= 0) {
             combat.fighters[index].deathSaves = { successes: 0, failures: 0 };
@@ -5849,7 +5838,7 @@ function changeFighterValue(index, field, amount) {
     const current = Number(combat.fighters[index][field]) || 0;
     const next = Math.max(0, current + amount);
     combat.fighters[index][field] = next;
-    if (field === "hp") logCombatHpChange(combat, index, current, next);
+    if (field === "hp") recordCombatHpEvent(combat, index, current, next);
     if (field === "hp" && next > 0 && current <= 0) {
         combat.fighters[index].deathSaves = { successes: 0, failures: 0 };
         combat.fighters[index].deathSavesResult = "";
@@ -6879,6 +6868,7 @@ function startCombatDisplayState() {
         firstAlive >= 0 ? firstAlive : 0;
 
     combat.displayVisibleCount = 1;
+    upsertCombatStatsRecord(combat);
     combatDisplayWindow.__dndDisplaySignature = null;
     combatDisplayWindow.__dndLastDisplayHp = {};
     combatDisplayWindow.__dndPendingHits = {};
@@ -6918,26 +6908,27 @@ function endCombatDisplay() {
     const combat = combats.find(c => c.id === combatDisplayCombatId);
     if (!combat) return;
 
-    // Détermine le résultat AVANT de clôturer le combat.
-    // La règle reste volontairement simple : tous les ennemis morts = gagné,
-    // tous les joueurs hors combat = perdu. Si les deux camps sont encore
-    // vivants, on ne force pas artificiellement un résultat.
     const result = getCombatResultMessage(combat);
     if (result && result.title.includes("VICTOIRE")) combat.statsResult = "won";
     else if (result && result.title.includes("GAME OVER")) combat.statsResult = "lost";
-    else if (!combat.statsResult) combat.statsResult = "won";
+    else {
+        const playersAlive = (combat.fighters || []).some(f =>
+            (f.type === "player" || ((f.type === "npc" || f.type === "manual") && f.allegiance !== "enemy")) && Number(f.hp) > 0
+        );
+        combat.statsResult = playersAlive ? "won" : "lost";
+    }
 
     combat.displayElapsedMs = getCombatElapsedMs(combat);
     combat.displayStartedAt = null;
     combat.displayStarted = false;
-    combat.statsEndedAt = combat.statsEndedAt || new Date().toISOString();
+    combat.statsEndedAt = new Date().toISOString();
     combat.combatEnded = true;
-    saveCombats();
 
-    if (combatDisplayWindow && !combatDisplayWindow.closed) {
-        combatDisplayWindow.close();
-    }
+    // Clôture : Stats reçoit son propre instantané et ne dépendra plus du combat actif.
+    finalizeCombatStatsRecord(combat);
+    guardedSave(COMBAT_STORAGE_KEY, combats);
 
+    if (combatDisplayWindow && !combatDisplayWindow.closed) combatDisplayWindow.close();
     renderCombats();
     renderStats();
 }
@@ -7091,10 +7082,7 @@ function toggleStatsDetail(id) {
 function renderStats() {
     const container = document.getElementById("statsList");
     if (!container) return;
-    loadCombats();
     loadCombatStatsHistory();
-    combats.forEach(upsertCombatStatsRecord);
-    saveCombatStatsHistory();
 
     const statsRecords = combatStatsHistory;
     if (!statsRecords.length) {
